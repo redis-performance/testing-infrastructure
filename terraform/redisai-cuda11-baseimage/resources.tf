@@ -43,8 +43,12 @@ resource "aws_instance" "server" {
   }
 
   volume_tags = {
-    Name        = "ebs_block_device-${var.setup_name}-${count.index + 1}"
-    RedisModule = "${var.redis_module}"
+    name        = "ebs_block_device-${var.setup_name}-${count.index + 1}"
+    setup        = "${var.setup_name}"
+    redis_module = "${var.redis_module}"
+    github_actor = "${var.github_actor}"
+    github_repo  = "${var.github_repo}"
+    github_sha   = "${var.github_sha}"
   }
 
   tags = {
