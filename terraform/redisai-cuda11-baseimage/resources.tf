@@ -48,9 +48,12 @@ resource "aws_instance" "server" {
   }
 
   tags = {
-    Name        = "${var.setup_name}-${count.index + 1}"
-    Setup        = "${var.setup_name}"
-    RedisModule = "${var.redis_module}"
+    name         = "${var.setup_name}-${count.index + 1}"
+    setup        = "${var.setup_name}"
+    redis_module = "${var.redis_module}"
+    github_actor = "${var.github_actor}"
+    github_repo  = "${var.github_repo}"
+    github_sha   = "${var.github_sha}"
   }
 
   ################################################################################

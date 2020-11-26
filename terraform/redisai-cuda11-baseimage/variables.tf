@@ -1,8 +1,24 @@
-# Variables
+################################################################################
+# Variables used for deployment tag
+################################################################################
 
 variable "setup_name" {
   description = "setup name"
   default     = "redisai-cuda11-baseimage"
+}
+variable "github_actor" {
+  description = "The name of the person or app that initiated the deployment."
+  default     = "N/A"
+}
+
+variable "github_repo" {
+  description = "	The owner and repository name. For example, octocat/Hello-World."
+  default     = "N/A"
+}
+
+variable "github_sha" {
+  description = "	The commit SHA that triggered the deployment."
+  default     = "N/A"
 }
 
 ################################################################################
