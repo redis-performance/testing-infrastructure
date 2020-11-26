@@ -43,7 +43,7 @@ resource "aws_instance" "server" {
   }
 
   volume_tags = {
-    name        = "ebs_block_device-${var.setup_name}-${count.index + 1}"
+    Name        = "ebs_block_device-${var.setup_name}-${count.index + 1}"
     setup        = "${var.setup_name}"
     redis_module = "${var.redis_module}"
     github_actor = "${var.github_actor}"
@@ -52,7 +52,7 @@ resource "aws_instance" "server" {
   }
 
   tags = {
-    name         = "${var.setup_name}-${count.index + 1}"
+    Name         = "${var.setup_name}-${count.index + 1}"
     setup        = "${var.setup_name}"
     redis_module = "${var.redis_module}"
     github_actor = "${var.github_actor}"
