@@ -37,8 +37,6 @@ export EC2_REGION={ ## INSERT REGION ## }
 export EC2_ACCESS_KEY={ ## INSERT EC2 ACCESS KEY ## }
 export EC2_SECRET_KEY={ ## INSERT EC2 SECRET KEY ## }
 export OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES
-export GRAFANA_PASSWORD=perf
-export RE_LICENSE="{ ## INSERT RE LICENSE KEY ## }"
 ```
 
 ##### Deployment steps
