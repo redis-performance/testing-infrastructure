@@ -7,7 +7,7 @@ COMMIT=${COMMIT:-""}
 # How many benchmark threads - match num of cores, or default to 8
 JOBS=${JOBS:-$(grep -c ^processor /proc/cpuinfo 2>/dev/null || echo 8)}
 
-sudo apt update -y
+# sudo apt update -y
 sudo apt install git -y
 sudo apt install build-essential cmake m4 automake peg libtool autoconf -y
 

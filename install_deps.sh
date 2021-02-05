@@ -1,5 +1,5 @@
 #!/bin/bash
-sudo apt install -y awscli zip jq
+sudo apt install -y zip
 
 # Ensure terraform is available
 TF_EXE_FILE_NAME=${TF_EXE_FILE_NAME:-$(which terraform)}

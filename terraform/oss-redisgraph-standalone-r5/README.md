@@ -36,7 +36,7 @@ The terraform script expects the following public private keys to be present on 
 within project repo
 
 ```bash
-cd terraform/oss-redisgraph-standalone-r5
+cd RedisGraph/tests/benchmarks/aws/tf-oss-redisgraph-standalone-r5
 terraform plan
 terraform apply
 ```

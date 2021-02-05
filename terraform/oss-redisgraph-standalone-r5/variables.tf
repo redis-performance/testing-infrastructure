@@ -12,7 +12,17 @@ variable "github_actor" {
 }
 
 variable "github_repo" {
-  description = "	The owner and repository name. For example, RedisModules/testing-infrastructure."
+  description = "	The owner and repository name. For example, testing-infrastructure."
+  default     = "N/A"
+}
+
+variable "triggering_env" {
+  description = "	The triggering environment. For example circleci."
+  default     = "N/A"
+}
+
+variable "github_org" {
+  description = "	The owner name. For example, RedisModules."
   default     = "N/A"
 }
 
@@ -26,7 +36,7 @@ variable "github_sha" {
 ################################################################################
 variable "private_key" {
   description = "private key"
-  default     = "~/.ssh/perf-cto-joint-tasks.pem"
+  default     = "/tmp/benchmarks.redislabs.redisgraph.pem"
 }
 
 variable "public_key" {
@@ -46,8 +56,8 @@ variable "region" {
 # (Ubuntu 18.04)
 # ubuntu-bionic-18.04-amd64-server-20201026
 variable "instance_ami" {
-  description = "AMI for aws EC2 instance - us-east-2 Ubuntu 18.04"
-  default     = "ami-0dd9f0e7df0f0a138"
+  description = "AMI for aws EC2 instance - us-east-2 Ubuntu 18.04 - perf-cto-base-image-redis6.0.10"
+  default     = "ami-0f94595d359cdfe44"
 }
 
 variable "instance_device_name" {
@@ -62,7 +72,7 @@ variable "redis_module" {
 
 variable "instance_volume_size" {
   description = "EC2 instance volume_size"
-  default     = "128"
+  default     = "256"
 }
 
 variable "instance_volume_type" {
