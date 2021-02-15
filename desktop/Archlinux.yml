@@ -1,0 +1,26 @@
+---
+
+- name: update cache and upgrade to latest
+  pacman: update_cache=yes upgrade=yes
+
+- name: install packages required for module builds
+  pacman:
+    state: latest
+    name: "{{ item }}"
+  with_items:
+    - base-devel
+    - ca-certificates
+    - clang
+    - cmake
+    - ctags
+    - curl
+    - graphviz
+    - jq
+    - rust
+    - wget
+
+- name: installing ramp-packer for building redis packages
+  pip:
+      name: ramp-packer
+      state: latest
+  become: yes
