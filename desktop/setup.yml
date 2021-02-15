@@ -1,0 +1,10 @@
+---
+
+- name: configure build environments
+  hosts: all
+  become: yes
+
+  tasks:
+    - name: include desktop rules
+      include: "{{ansible_os_family}}.yml"
+      when: is_server is undefined
