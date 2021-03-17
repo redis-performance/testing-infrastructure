@@ -36,7 +36,7 @@ variable "github_sha" {
 ################################################################################
 variable "private_key" {
   description = "private key"
-  default     = "/tmp/benchmarks.redislabs.redisgraph.pem"
+  default     = "/tmp/benchmarks.redislabs.pem"
 }
 
 variable "public_key" {
@@ -151,10 +151,5 @@ variable "client_instance_type" {
 
 variable "client_instance_count" {
   default = "1"
-}
-
-variable "client_instance_cpu_core_count" {
-  description = "CPU core count for aws EC2 instance"
-  default     = 16
 }
 

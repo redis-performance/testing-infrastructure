@@ -26,7 +26,7 @@ variable "github_sha" {
 ################################################################################
 variable "private_key" {
   description = "private key"
-  default     = "~/.ssh/perf-cto-joint-tasks.pem"
+  default     = "/tmp/benchmarks.redislabs.pem"
 }
 
 variable "public_key" {
