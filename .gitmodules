@@ -1,0 +1,3 @@
+[submodule "terraform/deps/automata"]
+	path = terraform/deps/automata
+	url = https://github.com/RedisLabsModules/automata
