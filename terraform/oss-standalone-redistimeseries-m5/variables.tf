@@ -150,6 +150,6 @@ variable "client_instance_type" {
 }
 
 variable "client_instance_count" {
-  default = "4"
+  default = "1"
 }
 
