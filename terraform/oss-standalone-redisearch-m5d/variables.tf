@@ -41,7 +41,7 @@ variable "private_key" {
 
 variable "key_name" {
   description = "key name"
-  default     = "perf-cto-us-east-2"
+  default     = "perf-cto-joint-tasks"
 }
 
 variable "region" {
