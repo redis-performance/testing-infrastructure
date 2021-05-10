@@ -10,15 +10,22 @@ terraform {
 }
 
 resource "aws_vpc" "vpc" {
-  cidr_block           = "${var.cidr_vpc}"
+  cidr_block           = var.cidr_vpc
   enable_dns_support   = true
   enable_dns_hostnames = true
   tags = {
     Environment = "${var.environment_tag}"
-    Name        = "perf-cto-vpc"
+    Name        = "perf-cto-vpc-us-east-2"
   }
 }
 
+# benchmark.redislabs eip
+resource "aws_eip" "benchmarks_redislabs_eip" {
+  vpc = true
+  tags = {
+    Name = "benchmarks-redislabs-eip"
+  }
+}
 
 #keep monitoring ip always the same
 resource "aws_eip" "perf_cto_eip" {
@@ -45,24 +52,24 @@ resource "aws_eip" "perf_cto_jumpbox_redisgraph_ip" {
 }
 
 resource "aws_placement_group" "perf_cto_pg" {
-  name     = "${var.placement_group_name}"
+  name     = var.placement_group_name
   strategy = "cluster"
 }
 
 
 resource "aws_placement_group" "perf_cto_pg_us_east_2b" {
-  name     = "${var.placement_group_name_us_east_2b}"
+  name     = var.placement_group_name_us_east_2b
   strategy = "cluster"
 }
 
 
 resource "aws_placement_group" "perf_cto_pg_us_east_2c" {
-  name     = "${var.placement_group_name_us_east_2c}"
+  name     = var.placement_group_name_us_east_2c
   strategy = "cluster"
 }
 
 resource "aws_internet_gateway" "igw" {
-  vpc_id = "${aws_vpc.vpc.id}"
+  vpc_id = aws_vpc.vpc.id
   tags = {
     Environment = "${var.environment_tag}"
     Name        = "perf-cto-gw"
@@ -70,10 +77,10 @@ resource "aws_internet_gateway" "igw" {
 }
 
 resource "aws_subnet" "subnet_public" {
-  vpc_id                  = "${aws_vpc.vpc.id}"
-  cidr_block              = "${var.cidr_subnet}"
+  vpc_id                  = aws_vpc.vpc.id
+  cidr_block              = var.cidr_subnet
   map_public_ip_on_launch = "true"
-  availability_zone       = "${var.availability_zone}"
+  availability_zone       = var.availability_zone
   tags = {
     Environment = "${var.environment_tag}"
     Name        = "perf-cto-subnet"
@@ -81,10 +88,10 @@ resource "aws_subnet" "subnet_public" {
 }
 
 resource "aws_subnet" "subnet_public_us_east_2b" {
-  vpc_id                  = "${aws_vpc.vpc.id}"
-  cidr_block              = "${var.cidr_subnet_2b}"
+  vpc_id                  = aws_vpc.vpc.id
+  cidr_block              = var.cidr_subnet_2b
   map_public_ip_on_launch = "true"
-  availability_zone       = "${var.availability_zone_2b}"
+  availability_zone       = var.availability_zone_2b
   tags = {
     Environment = "${var.environment_tag}"
     Name        = "perf-cto-subnet-${var.availability_zone_2b}"
@@ -93,10 +100,10 @@ resource "aws_subnet" "subnet_public_us_east_2b" {
 
 
 resource "aws_subnet" "subnet_public_us_east_2c" {
-  vpc_id                  = "${aws_vpc.vpc.id}"
-  cidr_block              = "${var.cidr_subnet_2c}"
+  vpc_id                  = aws_vpc.vpc.id
+  cidr_block              = var.cidr_subnet_2c
   map_public_ip_on_launch = "true"
-  availability_zone       = "${var.availability_zone_2c}"
+  availability_zone       = var.availability_zone_2c
   tags = {
     Environment = "${var.environment_tag}"
     Name        = "perf-cto-subnet-${var.availability_zone_2c}"
@@ -105,11 +112,11 @@ resource "aws_subnet" "subnet_public_us_east_2c" {
 
 
 resource "aws_route_table" "rtb_public" {
-  vpc_id = "${aws_vpc.vpc.id}"
+  vpc_id = aws_vpc.vpc.id
 
   route {
     cidr_block = "0.0.0.0/0"
-    gateway_id = "${aws_internet_gateway.igw.id}"
+    gateway_id = aws_internet_gateway.igw.id
   }
 
   tags = {
@@ -117,29 +124,29 @@ resource "aws_route_table" "rtb_public" {
   }
 }
 provider "aws" {
-  region = "${var.region}"
+  region = var.region
 }
 
 resource "aws_route_table_association" "rta_subnet_public" {
-  subnet_id      = "${aws_subnet.subnet_public.id}"
-  route_table_id = "${aws_route_table.rtb_public.id}"
+  subnet_id      = aws_subnet.subnet_public.id
+  route_table_id = aws_route_table.rtb_public.id
 }
 
 
 resource "aws_route_table_association" "rta_subnet_public_2b" {
-  subnet_id      = "${aws_subnet.subnet_public_us_east_2b.id}"
-  route_table_id = "${aws_route_table.rtb_public.id}"
+  subnet_id      = aws_subnet.subnet_public_us_east_2b.id
+  route_table_id = aws_route_table.rtb_public.id
 }
 
 resource "aws_route_table_association" "rta_subnet_public_2c" {
-  subnet_id      = "${aws_subnet.subnet_public_us_east_2c.id}"
-  route_table_id = "${aws_route_table.rtb_public.id}"
+  subnet_id      = aws_subnet.subnet_public_us_east_2c.id
+  route_table_id = aws_route_table.rtb_public.id
 }
 
 
 resource "aws_security_group" "performance_cto_sg" {
   name   = "perf-cto-sg"
-  vpc_id = "${aws_vpc.vpc.id}"
+  vpc_id = aws_vpc.vpc.id
 
   # SSH access from the VPC
   ingress {
@@ -148,6 +155,18 @@ resource "aws_security_group" "performance_cto_sg" {
     description = ""
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  # netdata
+  ingress {
+    from_port   = 19999
+    to_port     = 19999
+    description = ""
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+    ipv6_cidr_blocks = [
+      "::/0",
+    ]
   }
 
   # 
