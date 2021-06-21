@@ -6,6 +6,9 @@ resource "aws_instance" "server" {
   subnet_id              = data.terraform_remote_state.shared_resources.outputs.subnet_public_id
   vpc_security_group_ids = ["${data.terraform_remote_state.shared_resources.outputs.performance_cto_sg_id}"]
   key_name               = "${var.key_name}"
+  associate_public_ip_address = "true"
+  placement_group      = "${data.terraform_remote_state.shared_resources.outputs.perf_cto_pg_name}"
+  availability_zone = "us-east-2a"
 
   root_block_device {
     volume_size           = "${var.instance_volume_size}"
