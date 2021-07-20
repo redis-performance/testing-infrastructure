@@ -4,7 +4,7 @@
 
 variable "setup_name" {
   description = "setup name"
-  default     = "perf-cto-RE-5nodes-1az-single"
+  default     = "perf-cto-RE-1node-rof-baseline"
 }
 variable "github_actor" {
   description = "The name of the person or app that initiated the deployment."
@@ -130,20 +130,20 @@ variable "ssh_user" {
 ################################################################################
 # Specific DB machine variables
 ################################################################################
-# m5d.8xlarge 	32 VCPUs 	128 GB MEM
+# i3.8xlarge 	32 VCPUs 	
 variable "server_instance_type" {
   description = "type for aws EC2 instance"
-  default     = "c5.4xlarge"
+  default     = "i3.8xlarge"
 }
 
 
 variable "server_instance_count" {
-  default = "5"
+  default = "1"
 }
 
 variable "server_instance_cpu_core_count" {
   description = "CPU core count for aws EC2 instance"
-  default     = 8
+  default     = 16
 }
 
 

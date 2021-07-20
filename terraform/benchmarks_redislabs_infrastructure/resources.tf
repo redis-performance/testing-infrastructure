@@ -28,6 +28,7 @@ resource "aws_eip_association" "eip_assoc" {
 }
 
 resource "aws_instance" "monitoring_instance" {
+  disable_api_termination              = true
   count                  = "${var.server_instance_count}"
   ami                    = "${var.instance_ami}"
   instance_type          = "${var.instance_type}"

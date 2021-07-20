@@ -103,3 +103,15 @@ variable "key_name" {
 }
 
 
+
+variable "private_key_proxy" {
+  description = "private key"
+  default     = "/tmp/benchmarks.redislabs.pem"
+}
+
+variable "key_name_proxy" {
+  description = "key name"
+  default     = "perf-cto-us-east-2"
+}
+
+
