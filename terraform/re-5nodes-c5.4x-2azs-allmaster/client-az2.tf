@@ -1,12 +1,13 @@
 
-resource "aws_instance" "server" {
-  count                  = var.server_instance_count
+resource "aws_instance" "az2_client" {
+  count                  = "1"
   ami                    = var.instance_ami
   instance_type          = var.server_instance_type
-  subnet_id              = data.terraform_remote_state.shared_resources.outputs.subnet_public_id
+  subnet_id              = data.terraform_remote_state.shared_resources.outputs.subnet_us_east_2b_public_id
   vpc_security_group_ids = ["${data.terraform_remote_state.shared_resources.outputs.performance_cto_sg_id}"]
   key_name               = var.key_name
-  placement_group      = "${data.terraform_remote_state.shared_resources.outputs.perf_cto_pg_name}"
+  placement_group      = "${data.terraform_remote_state.shared_resources.outputs.placement_group_name_us_east_2b}"
+  availability_zone = "us-east-2b"
 
   root_block_device {
     volume_size           = var.instance_volume_size
@@ -17,7 +18,7 @@ resource "aws_instance" "server" {
   }
 
   volume_tags = {
-    Name           = "ebs_block_device-${var.setup_name}-DB-${count.index + 1}"
+    Name           = "ebs_block_device-${var.setup_name}-CLIENT-us_east_2b-${count.index + 1}"
     setup          = "${var.setup_name}"
     triggering_env = "${var.triggering_env}"
     github_actor   = "${var.github_actor}"
@@ -27,7 +28,7 @@ resource "aws_instance" "server" {
   }
 
   tags = {
-    Name           = "${var.setup_name}-DB-${count.index + 1}"
+    Name           = "${var.setup_name}-CLIENT-us_east_2b-${count.index + 1}"
     setup          = "${var.setup_name}"
     triggering_env = "${var.triggering_env}"
     github_actor   = "${var.github_actor}"

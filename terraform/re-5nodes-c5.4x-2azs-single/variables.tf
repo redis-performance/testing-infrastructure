@@ -4,7 +4,7 @@
 
 variable "setup_name" {
   description = "setup name"
-  default     = "perf-cto-RE-6.0.12-3node-redisgraph-r5-centos7"
+  default     = "perf-cto-RE-5nodes-2azs-single"
 }
 variable "github_actor" {
   description = "The name of the person or app that initiated the deployment."
@@ -48,10 +48,11 @@ variable "region" {
   default = "us-east-2"
 }
 
-# CentOS Linux 7
+# (Ubuntu 18.04)
+# ubuntu-bionic-18.04-amd64-server-20201026
 variable "instance_ami" {
-  description = "AMI for aws EC2 instance -  CentOS Linux 7 7.9.2009 us-east-2"
-  default     = "ami-01e36b7901e884a10"
+  description = "AMI for aws EC2 instance - us-east-2 Ubuntu 18.04 - perf-cto-base-image-redis6.2.1"
+  default     = "ami-0d441a71afd491e0a"
 }
 
 variable "instance_device_name" {
@@ -118,30 +119,31 @@ variable "instance_network_interface_plus_count" {
 
 variable "os" {
   description = "os"
-  default     = "centos7"
+  default     = "ubuntu18.04"
 }
 
 variable "ssh_user" {
   description = "ssh_user"
-  default     = "centos"
+  default     = "ubuntu"
 }
 
 ################################################################################
 # Specific DB machine variables
 ################################################################################
-# r5.8xlarge 	32 VCPUs 	256 GB MEM
+# m5d.8xlarge 	32 VCPUs 	128 GB MEM
 variable "server_instance_type" {
   description = "type for aws EC2 instance"
-  default     = "r5.8xlarge"
+  default     = "c5.4xlarge"
 }
 
-variable "server_instance_count" {
-  default = "2"
-}
+# commented out given we control the per-az # of machines on each .tf file
+# variable "server_instance_count" {
+#   default = "5"
+# }
 
 variable "server_instance_cpu_core_count" {
   description = "CPU core count for aws EC2 instance"
-  default     = 16
+  default     = 8
 }
 
 

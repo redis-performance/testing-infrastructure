@@ -4,7 +4,7 @@
 
 variable "setup_name" {
   description = "setup name"
-  default     = "perf-cto-RE-6.0.12-3node-redisgraph-r5-centos7"
+  default     = "oss-1node-c5.4xlarge"
 }
 variable "github_actor" {
   description = "The name of the person or app that initiated the deployment."
@@ -12,17 +12,7 @@ variable "github_actor" {
 }
 
 variable "github_repo" {
-  description = "	The owner and repository name. For example, testing-infrastructure."
-  default     = "N/A"
-}
-
-variable "triggering_env" {
-  description = "	The triggering environment. For example circleci."
-  default     = "N/A"
-}
-
-variable "github_org" {
-  description = "	The owner name. For example, RedisModules."
+  description = "	The owner and repository name. For example, octocat/Hello-World."
   default     = "N/A"
 }
 
@@ -39,19 +29,25 @@ variable "private_key" {
   default     = "/tmp/benchmarks.redislabs.pem"
 }
 
+variable "public_key" {
+  description = "public key"
+  default     = "~/.ssh/perf-cto-joint-tasks.pub"
+}
+
 variable "key_name" {
   description = "key name"
-  default     = "perf-cto-us-east-2"
+  default     = "perf-cto-joint-tasks"
 }
 
 variable "region" {
   default = "us-east-2"
 }
 
-# CentOS Linux 7
+# (Ubuntu 18.04)
+# ubuntu-bionic-18.04-amd64-server-20201026
 variable "instance_ami" {
-  description = "AMI for aws EC2 instance -  CentOS Linux 7 7.9.2009 us-east-2"
-  default     = "ami-01e36b7901e884a10"
+  description = "AMI for aws EC2 instance - us-east-2 Ubuntu 18.04"
+  default     = "ami-0dd9f0e7df0f0a138"
 }
 
 variable "instance_device_name" {
@@ -66,30 +62,18 @@ variable "redis_module" {
 
 variable "instance_volume_size" {
   description = "EC2 instance volume_size"
-  default     = "1024"
+  default     = "128"
 }
 
 variable "instance_volume_type" {
   description = "EC2 instance volume_type"
-  default     = "io1"
-}
-
-
-variable "instance_volume_iops" {
-  description = "EC2 instance volume_iops"
-  default     = "3000"
-}
-
-variable "client_instance_volume_size" {
-  description = "EC2 instance volume_size"
-  default     = "256"
-}
-
-variable "client_instance_volume_type" {
-  description = "EC2 instance volume_type"
   default     = "gp2"
 }
 
+variable "instance_volume_iops" {
+  description = "EC2 instance volume_iops"
+  default     = "384"
+}
 
 variable "instance_volume_encrypted" {
   description = "EC2 instance instance_volume_encrypted"
@@ -99,6 +83,21 @@ variable "instance_volume_encrypted" {
 variable "instance_root_block_device_encrypted" {
   description = "EC2 instance instance_root_block_device_encrypted"
   default     = "false"
+}
+
+# Model	c5.4xlarge
+variable "instance_type" {
+  description = "type for aws EC2 instance"
+  default     = "c5.4xlarge"
+}
+
+variable "server_instance_count" {
+  default = "1"
+}
+
+variable "instance_cpu_core_count" {
+  description = "CPU core count for aws EC2 instance"
+  default     = 8
 }
 
 variable "instance_cpu_threads_per_core" {
@@ -118,44 +117,10 @@ variable "instance_network_interface_plus_count" {
 
 variable "os" {
   description = "os"
-  default     = "centos7"
+  default     = "ubuntu18.04"
 }
 
 variable "ssh_user" {
   description = "ssh_user"
-  default     = "centos"
+  default     = "ubuntu"
 }
-
-################################################################################
-# Specific DB machine variables
-################################################################################
-# r5.8xlarge 	32 VCPUs 	256 GB MEM
-variable "server_instance_type" {
-  description = "type for aws EC2 instance"
-  default     = "r5.8xlarge"
-}
-
-variable "server_instance_count" {
-  default = "2"
-}
-
-variable "server_instance_cpu_core_count" {
-  description = "CPU core count for aws EC2 instance"
-  default     = 16
-}
-
-
-################################################################################
-# Specific Client machine variables
-################################################################################
-# m5.8xlarge 	32 VCPUs 	128 GB MEM
-
-variable "client_instance_type" {
-  description = "type for aws EC2 instance"
-  default     = "m5.8xlarge"
-}
-
-variable "client_instance_count" {
-  default = "1"
-}
-

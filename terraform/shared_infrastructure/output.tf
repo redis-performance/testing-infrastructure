@@ -10,6 +10,14 @@ output "subnet_public_id" {
   value = aws_subnet.subnet_public.id
 }
 
+output "subnet_public_us_east_2b_id" {
+  value = aws_subnet.subnet_public_us_east_2b.id
+}
+
+output "subnet_public_us_east_2c_id" {
+  value = aws_subnet.subnet_public_us_east_2c.id
+}
+
 output "perf_cto_pg_name" {
   value = aws_placement_group.perf_cto_pg.name
 }
@@ -37,6 +45,10 @@ output "perf_cto_monitoring_redistimeseries_cluster_ip" {
 
 output "benchmarks_redislabs_eip" {
   value = aws_eip.benchmarks_redislabs_eip.public_ip
+}
+
+output "benchmarks_redislabs_eip_id" {
+  value = aws_eip.benchmarks_redislabs_eip.id
 }
 
 output "perf_cto_monitoring_redistimeseries_cluster_id" {

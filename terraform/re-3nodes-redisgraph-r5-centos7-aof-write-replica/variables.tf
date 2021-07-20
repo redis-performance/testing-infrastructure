@@ -4,7 +4,7 @@
 
 variable "setup_name" {
   description = "setup name"
-  default     = "perf-cto-RE-6.0.12-3node-redisgraph-r5-centos7"
+  default     = "perf-cto-RE-6.0.12-redisgraph-aof-write-replica"
 }
 variable "github_actor" {
   description = "The name of the person or app that initiated the deployment."
@@ -132,7 +132,7 @@ variable "ssh_user" {
 # r5.8xlarge 	32 VCPUs 	256 GB MEM
 variable "server_instance_type" {
   description = "type for aws EC2 instance"
-  default     = "r5.8xlarge"
+  default     = "r5d.8xlarge"
 }
 
 variable "server_instance_count" {
