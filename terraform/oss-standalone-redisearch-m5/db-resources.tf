@@ -10,7 +10,6 @@ resource "aws_instance" "server" {
   availability_zone = "us-east-2a"
 
   root_block_device {
-    iops                  = var.instance_volume_iop
     volume_size           = "${var.instance_volume_size}"
     volume_type           = "${var.instance_volume_type}"
     encrypted             = "${var.instance_volume_encrypted}"
