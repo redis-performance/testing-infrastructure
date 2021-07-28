@@ -58,6 +58,12 @@ variable "instance_device_name" {
   default     = "/dev/sda1"
 }
 
+
+variable "instance_volume_type" {
+  description = "EC2 instance volume_type"
+  default     = "gp2"
+}
+
 variable "instance_volume_iops" {
   description = "EC2 instance volume_iops"
   default     = "384"
@@ -73,10 +79,6 @@ variable "instance_volume_size" {
   default     = "1024"
 }
 
-variable "instance_volume_type" {
-  description = "EC2 instance volume_type"
-  default     = "io1"
-}
 
 variable "client_instance_volume_size" {
   description = "EC2 instance volume_size"
