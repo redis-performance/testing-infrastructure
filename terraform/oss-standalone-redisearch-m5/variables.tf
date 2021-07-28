@@ -50,7 +50,7 @@ variable "region" {
 
 variable "instance_ami" {
   description = "AMI for aws EC2 instance - us-east-2 Ubuntu 18.04 - perf-cto-base-image-redis6.2.4"
-  default     = "ami-0dfc19c2cc59ed638"
+  default     = "ami-0d441a71afd491e0a"
 }
 
 variable "instance_device_name" {
@@ -76,12 +76,6 @@ variable "instance_volume_size" {
 variable "instance_volume_type" {
   description = "EC2 instance volume_type"
   default     = "io1"
-}
-
-
-variable "instance_volume_iops" {
-  description = "EC2 instance volume_iops"
-  default     = "3000"
 }
 
 variable "client_instance_volume_size" {
@@ -136,7 +130,7 @@ variable "ssh_user" {
 # m5d.8xlarge 	32 VCPUs 	128 GB MEM
 variable "server_instance_type" {
   description = "type for aws EC2 instance"
-  default     = "m5d.8xlarge"
+  default     = "m5.8xlarge"
 }
 
 
