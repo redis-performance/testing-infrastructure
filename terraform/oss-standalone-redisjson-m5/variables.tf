@@ -4,7 +4,7 @@
 
 variable "setup_name" {
   description = "setup name"
-  default     = "oss-redisearch-m5"
+  default     = "oss-redisjson-m5"
 }
 variable "github_actor" {
   description = "The name of the person or app that initiated the deployment."
