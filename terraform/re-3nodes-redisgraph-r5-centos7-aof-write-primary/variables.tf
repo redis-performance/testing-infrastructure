@@ -4,7 +4,7 @@
 
 variable "setup_name" {
   description = "setup name"
-  default     = "perf-cto-RE-6.0.12-redisgraph-aof-write-primary"
+  default     = "perf-cto-RE-6.2.4-redisgraph-aof-write-primary"
 }
 variable "github_actor" {
   description = "The name of the person or app that initiated the deployment."

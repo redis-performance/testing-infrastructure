@@ -35,7 +35,7 @@ cd terraform/oss-3nodes-elasticsearch-m5d
 terraform plan
 terraform apply
 
-ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook --private-key /tmp/benchmarks.redislabs.pem -u ubuntu -i 3.128.199.113,3.144.12.156,3.140.198.193, -e "elasticsearch_nodes=[10.3.0.236,10.3.0.117,10.3.0.147]" ../deps/automata/ansible/elasticsearch.yml
+ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook --private-key /tmp/benchmarks.redislabs.pem -u ubuntu -i 3.12.36.37,3.144.27.172,3.141.28.145, -e "elasticsearch_nodes=[10.3.0.75,10.3.0.47,10.3.0.11]" ../deps/automata/ansible/elasticsearch.yml
 ```
 
 ```
@@ -66,8 +66,8 @@ curl -X GET "localhost:9200/_cluster/health?pretty"
   "timed_out" : false,
   "number_of_nodes" : 3,
   "number_of_data_nodes" : 3,
-  "active_primary_shards" : 1,
-  "active_shards" : 2,
+  "active_primary_shards" : 15,
+  "active_shards" : 15,
   "relocating_shards" : 0,
   "initializing_shards" : 0,
   "unassigned_shards" : 0,
@@ -120,57 +120,37 @@ mvn -pl site.ycsb:elasticsearch7-binding -am clean package
 
 ### 5. Load data and run the tests
 
-All six workloads have a data set that is similar. Workloads D and E insert records during the test run. Thus, to keep the database size consistent, we recommend the following sequence:
-
-Load the database, using workload A’s parameter file (workloads/workloada) and the “-load” switch to the client.
-
-- Run workload A (using workloads/workloada and “-t”) for a variety of throughputs.
-
-- Run workload B (using workloads/workloadb and “-t”) for a variety of throughputs.
-
-- Run workload C (using workloads/workloadc and “-t”) for a variety of throughputs.
-
-- Run workload F (using workloads/workloadf and “-t”) for a variety of throughputs.
-
-- Run workload D (using workloads/workloadd and “-t”) for a variety of throughputs. This workload inserts records, increasing the size of the database.
-
-- Delete the data in the database.
-
-- Reload the database, using workload E’s parameter file (workloads/workloade) and the "-load switch to the client.
-
-- Run workload E (using workloads/workloade and “-t”) for a variety of throughputs. This workload inserts records, increasing the size of the database.
-
-
-```bash
-# load, run A, B, C, F, D, (flushdb), load, E
-./bin/ycsb load elasticsearch7 -s -P workloads/workloadecommerce -p mongodb.url=mongodb://localhost:27017/ycsb?w=0 -p "threadcount=8" > outputLoad.txt
-
-./bin/ycsb run elasticsearch7 -s -P workloads/workloada -p mongodb.url=mongodb://localhost:27017/ycsb?w=0 -p "threadcount=8" > outputRunA.txt
-./bin/ycsb run elasticsearch7 -s -P workloads/workloadb -p mongodb.url=mongodb://localhost:27017/ycsb?w=0 -p "threadcount=8" > outputRunB.txt
-./bin/ycsb run redisearch -s -P workloads/workloadc -p mongodb.url=mongodb://localhost:27017/ycsb?w=0 -p "threadcount=8" > outputRunC.txt
-./bin/ycsb run redisearch -s -P workloads/workloadf -p mongodb.url=mongodb://localhost:27017/ycsb?w=0 -p "threadcount=8" > outputRunF.txt
-./bin/ycsb run redisearch -s -P workloads/workloadd -p mongodb.url=mongodb://localhost:27017/ycsb?w=0 -p "threadcount=8" > outputRunD.txt
-
-redis-cli flushall
-
-./bin/ycsb load redisearch -s -P workloads/workloade -p mongodb.url=mongodb://localhost:27017/ycsb?w=0 -p "threadcount=32" -p "recordcount=30000000" -p "operationcount=30000000" > outputLoad.txt
-./bin/ycsb run redisearch -s -P workloads/workloade -p mongodb.url=mongodb://localhost:27017/ycsb?w=0 -p "threadcount=32" -p "recordcount=30000000" -p "operationcount=30000000" > outputRunE.txt
 ```
+# create the index
 
+./bin/ycsb load elasticsearch7-rest -P workloads/workload-ecommerce -p "es.number_of_shards=15" -p "es.hosts.list=10.3.0.75:9200" -p "orderedinserts=true" -p "threadcount=1" -p "recordcount=1"
+
+# load the data
+./bin/ycsb load elasticsearch7-rest -P workloads/workload-ecommerce -p "es.number_of_shards=15" -p "es.hosts.list=10.3.0.75:9200" -p "operationcount=1000000" -p "threadcount=64" -p "recordcount=1000000"
+ 
+
+# enable index updates
+curl -X PUT "localhost:9200/es.ycsb/_settings?pretty" -H 'Content-Type: application/json' -d'
+{
+  "index" : {
+    "refresh_interval" : "1s"
+  }                                                                   
+}                                                                        
+'
+
+
+```
 
 ## test 
 
 ```
-
- curl -X GET "localhost:9200/es.ycsb/_search?pretty" -H 'Content-Type: application/json' -d'
+curl -X GET "localhost:9200/es.ycsb/_search?pretty" -H 'Content-Type: application/json' -d'
 {
   "query": {
     "term": {
-      "productName": "paper bottle"
+      "productName": "paper"       
     }
   }, "sort": [ {"productScore":{}} ],"size": 2
 }
 '
-
-
 ```

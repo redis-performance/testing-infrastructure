@@ -4,7 +4,7 @@
 
 variable "setup_name" {
   description = "setup name"
-  default     = "perf-cto-RE-1node-rof-speedb"
+  default     = "oss-3nodes-mongodb-m5d"
 }
 variable "github_actor" {
   description = "The name of the person or app that initiated the deployment."
@@ -48,11 +48,11 @@ variable "region" {
   default = "us-east-2"
 }
 
-# (Ubuntu 18.04)
-# ubuntu-bionic-18.04-amd64-server-20201026
+# (Ubuntu 20.04)
+# us-east-2	focal	20.04 LTS	arm64	hvm:ebs-ssd	20210325
 variable "instance_ami" {
-  description = "AMI for aws EC2 instance - us-east-2 Ubuntu 18.04 - perf-cto-base-image-redis6.2.1"
-  default     = "ami-0ed1ccbb18ed2f0ce"
+  description = "AMI for aws EC2 instance - us-east-2	focal	20.04 LTS	arm64	hvm:ebs-ssd	20210325"
+  default     = "ami-06e64809872e814b0"
 }
 
 variable "instance_device_name" {
@@ -119,7 +119,7 @@ variable "instance_network_interface_plus_count" {
 
 variable "os" {
   description = "os"
-  default     = "ubuntu18.04"
+  default     = "ubuntu20.04"
 }
 
 variable "ssh_user" {
@@ -130,15 +130,15 @@ variable "ssh_user" {
 ################################################################################
 # Specific DB machine variables
 ################################################################################
-# i3.8xlarge 	32 VCPUs 	
+# m5d.8xlarge 	32 VCPUs 	128 GB MEM
 variable "server_instance_type" {
   description = "type for aws EC2 instance"
-  default     = "i3.8xlarge"
+  default     = "m5d.8xlarge"
 }
 
 
 variable "server_instance_count" {
-  default = "1"
+  default = "3"
 }
 
 variable "server_instance_cpu_core_count" {
