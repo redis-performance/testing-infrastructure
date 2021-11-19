@@ -31,7 +31,7 @@ The terraform script expects the following private key to be present on:
 within project repo
 
 ```bash
-cd terraform/oss-timescale-m5d
+cd terraform/oss-mongodb-m5d
 terraform plan
 terraform apply
 ansible-playbook --private-key <pem> -u ubuntu -i <output of server_public_ip>, ../deps/automata/ansible/mongodb.yml -e "mongodb_nodes=['<output of server_public_ip>']" -K
