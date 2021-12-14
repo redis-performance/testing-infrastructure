@@ -149,11 +149,11 @@ variable "server_instance_cpu_core_count" {
 ################################################################################
 # Specific Client machine variables
 ################################################################################
-# m5.8xlarge 	32 VCPUs 	128 GB MEM
+# c5.4xlarge 	16 VCPUs 
 
 variable "client_instance_type" {
   description = "type for aws EC2 instance"
-  default     = "m5.8xlarge"
+  default     = "c5.4xlarge"
 }
 
 variable "client_instance_count" {
