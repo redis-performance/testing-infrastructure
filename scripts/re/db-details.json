@@ -1,0 +1,28 @@
+{
+    "name": "27shards",
+    "replication": true,
+    "sharding": true,
+    "memory_size": 53687091200,
+    "shards_count": 27,
+    "oss_cluster": true,
+    "shard_key_regex": [
+        {
+            "regex": ".*\\{(?<tag>.*)\\}.*"
+        },
+        {
+            "regex": "(?<tag>.*)"
+        }
+    ],
+    "proxy_policy": "all-master-shards",
+    "data_persistence": "disabled",
+    "shards_placement": "sparse",
+    "type": "redis",
+    "port": 12000,
+    "module_list": [
+        {
+            "module_args": "",
+            "module_name": "ReJSON",
+            "semantic_version": "2.0.6"
+        }
+    ]
+}

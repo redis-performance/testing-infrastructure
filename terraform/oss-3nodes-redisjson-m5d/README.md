@@ -60,7 +60,7 @@ java --version
 git clone http://github.com/RediSearch/YCSB.git
 cd YCSB
 git checkout commerce-workload
-mvn -pl site.ycsb:mongodb-binding -am clean package
+mvn -pl site.ycsb:redisjson2-binding -am clean package
 
 ```
 
