@@ -1,3 +1,7 @@
+# scripts related
+scripts/re/artifacts/
+scripts/re/*.txt
+
 # Ansible
 *.retry
 *.inv

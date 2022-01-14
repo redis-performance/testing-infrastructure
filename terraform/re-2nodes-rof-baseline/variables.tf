@@ -4,7 +4,7 @@
 
 variable "setup_name" {
   description = "setup name"
-  default     = "perf-cto-RE-1node-rof-baseline"
+  default     = "perf-cto-RE-2nodes-rof-baseline"
 }
 variable "github_actor" {
   description = "The name of the person or app that initiated the deployment."
@@ -138,7 +138,7 @@ variable "server_instance_type" {
 
 
 variable "server_instance_count" {
-  default = "1"
+  default = "2"
 }
 
 variable "server_instance_cpu_core_count" {
