@@ -56,8 +56,8 @@ variable "region" {
 # (Ubuntu 18.04)
 # ubuntu-bionic-18.04-amd64-server-20201026
 variable "instance_ami" {
-  description = "AMI for aws EC2 instance - us-east-2 Ubuntu 18.04 - perf-cto-base-image-redis6.2.1"
-  default     = "ami-0a0a1355035f4e503"
+  description = "AMI for aws EC2 instance - us-east-2 Ubuntu 20.04 - perf-cto-base-image-ubuntu20.04-pd-0.6.21"
+  default     = "ami-00bf8dd8c2bfb53f8"
 }
 
 variable "instance_device_name" {
@@ -112,7 +112,7 @@ variable "instance_network_interface_plus_count" {
 
 variable "os" {
   description = "os"
-  default     = "ubuntu18.04"
+  default     = "ubuntu20.04"
 }
 
 variable "ssh_user" {
