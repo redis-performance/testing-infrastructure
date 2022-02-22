@@ -128,7 +128,7 @@ variable "ssh_user" {
 
 variable "client_instance_type" {
   description = "type for aws EC2 instance"
-  default     = "c5.4xlarge"
+  default     = "m6i.8xlarge"
 }
 
 variable "client_instance_count" {
