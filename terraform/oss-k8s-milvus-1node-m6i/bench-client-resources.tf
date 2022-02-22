@@ -27,7 +27,7 @@ resource "aws_instance" "client" {
   }
 
   tags = {
-    Name         = "${var.setup_name}-${count.index + 1}"
+    Name         = "${var.setup_name}-client-${count.index + 1}"
     setup        = "${var.setup_name}"
     redis_module = "${var.redis_module}"
     github_actor = "${var.github_actor}"
