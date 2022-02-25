@@ -1,4 +1,4 @@
-# oss-influxdb-m5d -- InfluxDB v1.8.4
+# oss-influxdb-m5d -- InfluxDB v2.1.1
 
 Deploy Multi-VM benchmark scenario, including 1 client and 1 DB machine.
 - Cloud provider: AWS
