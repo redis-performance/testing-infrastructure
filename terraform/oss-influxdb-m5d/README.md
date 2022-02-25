@@ -4,7 +4,7 @@ Deploy Multi-VM benchmark scenario, including 1 client and 1 DB machine.
 - Cloud provider: AWS
 - OS: Ubuntu 20.04
 - Client machine: m5d.8xlarge
-- Benchmark machine: m5d.8xlarge. InfluxDB v1.8.4
+- Benchmark machine: m5d.8xlarge. InfluxDB v2.1.1
 
 -------
 
@@ -37,11 +37,30 @@ terraform apply
 ansible-playbook --private-key <pem> -u ubuntu -i <output of server_public_ip>, ../deps/automata/ansible/influxdb.yml -K
 ```
 
-Extra settings: 
+Extra settings v1.8: 
 - cache-max-memory-size = "50g"
 - max-values-per-tag = 0
 - max-series-per-database 100000000
-  
+
+Extra settings v2.1 (default config file /etc/influxdb/config.toml): 
+- storage-cache-max-memory-size = 53687091200
+### setup steps
+
+```
+influx setup
+
+# use org name bellow
+influx bucket create -n bucket-perf -o org -r 0
+
+# use bucket id bellow
+influx v1 dbrp create --db benchmark --rp 0 --bucket-id `influx bucket ls --name bucket-perf | awk -v i=2 -v j=1 'FNR == i {print $j}'` --default
+
+# to delete bucket
+
+
+# get the auth token as follow
+influx auth list
+```
 
 ### Benchmark steps
 
@@ -57,16 +76,16 @@ make
 ```
 FORMATS="influx" SCALE=100 ./scripts/generate_data.sh
 FORMATS="influx" SCALE=100 TS_END="2016-01-04T00:00:00Z" ./scripts/generate_queries.sh
-DATABASE_HOST=<output of server_public_ip> FORMAT=influx SCALE=100 ./scripts/load/load_influx.sh
-DATABASE_HOST=<output of server_public_ip> FORMAT=influx SCALE=100 ./scripts/run/run_queries_influx.sh
+DATABASE_HOST=<output of server_public_ip> INFLUX_AUTH_TOKEN="<auth token>" FORMAT=influx SCALE=100 ./scripts/load/load_influx.sh
+DATABASE_HOST=<output of server_public_ip> INFLUX_AUTH_TOKEN="<auth token>" FORMAT=influx SCALE=100 ./scripts/run_queries/run_queries_influx.sh
 ```
 
 #### benchmark reads scale 4000
 ```
 FORMATS="influx" SCALE=4000 ./scripts/generate_data.sh
 FORMATS="influx" SCALE=4000 TS_END="2016-01-04T00:00:00Z" ./scripts/generate_queries.sh
-DATABASE_HOST=<output of server_public_ip> FORMAT=influx SCALE=4000 ./scripts/load/load_influx.sh
-DATABASE_HOST=<output of server_public_ip> FORMAT=influx SCALE=4000 ./scripts/run/run_queries_influx.sh
+DATABASE_HOST=<output of server_public_ip> FORMAT=influx SCALE=4000 INFLUX_AUTH_TOKEN="<auth token>" ./scripts/load/load_influx.sh
+DATABASE_HOST=<output of server_public_ip> FORMAT=influx SCALE=4000 INFLUX_AUTH_TOKEN="<auth token>" ./scripts/run/run_queries_influx.sh
 ```
 
 
@@ -76,30 +95,30 @@ DATABASE_HOST=<output of server_public_ip> FORMAT=influx SCALE=4000 ./scripts/ru
 #### 100 devices x 10 metrics	31 days
 ```
 FORMATS="influx" SCALE=100 TS_END="2016-02-01T00:00:00Z" ./scripts/generate_data.sh
-DATABASE_HOST=<output of server_public_ip> FORMAT=influx SCALE=100 ./scripts/load/load_timescale.sh
+DATABASE_HOST=<output of server_public_ip> FORMAT=influx SCALE=100 INFLUX_AUTH_TOKEN="<auth token>" ./scripts/load/load_influx.sh
 ```
 
 #### 4000 devices x 10 metrics (1382400000 metrics)	4 days
 ```
 FORMATS="influx" SCALE=4000 TS_END="2016-01-05T00:00:00Z" ./scripts/generate_data.sh
-DATABASE_HOST=<output of server_public_ip> FORMAT=influx SCALE=100 ./scripts/load/load_timescale.sh
+DATABASE_HOST=<output of server_public_ip> FORMAT=influx SCALE=100 INFLUX_AUTH_TOKEN="<auth token>" ./scripts/load/load_influx.sh
 ```
 
 
 #### 100K devices  x 10 metrics	3 hours
 ```
 FORMATS="influx" SCALE=100000 TS_END="2016-01-01T03:00:00Z" ./scripts/generate_data.sh
-DATABASE_HOST=<output of server_public_ip> FORMAT=influx SCALE=100000 ./scripts/load/load_timescale.sh
+DATABASE_HOST=<output of server_public_ip> FORMAT=influx SCALE=100000 INFLUX_AUTH_TOKEN="<auth token>" ./scripts/load/load_influx.sh
 ```
 
 #### 1M devices  x 10 metrics	3 minutes
 ```
 FORMATS="influx" SCALE=1000000 TS_END="2016-01-01T00:03:00Z" ./scripts/generate_data.sh
-DATABASE_HOST=<output of server_public_ip> FORMAT=influx SCALE=1000000 ./scripts/load/load_timescale.sh
+DATABASE_HOST=<output of server_public_ip> FORMAT=influx SCALE=1000000 INFLUX_AUTH_TOKEN="<auth token>" ./scripts/load/load_influx.sh
 ```
 
 #### 10M devices  x 10 metrics	3 minutes
 ```
 FORMATS="influx" SCALE=10000000 TS_END="2016-01-01T00:03:00Z" ./scripts/generate_data.sh
-DATABASE_HOST=<output of server_public_ip> FORMAT=influx SCALE=10000000 ./scripts/load/load_timescale.sh
+DATABASE_HOST=<output of server_public_ip> FORMAT=influx SCALE=10000000 INFLUX_AUTH_TOKEN="<auth token>" ./scripts/load/load_influx.sh
 ```

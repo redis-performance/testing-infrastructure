@@ -49,10 +49,10 @@ variable "region" {
 }
 
 # (Ubuntu 20.04)
-# us-east-2	focal	20.04 LTS	arm64	hvm:ebs-ssd	20210325
+# us-east-2	focal	20.04 LTS	20.04 LTS amd64	20220131
 variable "instance_ami" {
-  description = "AMI for aws EC2 instance - us-east-2	focal	20.04 LTS	arm64	hvm:ebs-ssd	20210325"
-  default     = "ami-06e64809872e814b0"
+  description = "AMI for aws EC2 instance - us-east-2	focal	20.04 LTS amd64	20220131"
+  default     = "ami-039af3bfc52681cd5"
 }
 
 variable "instance_device_name" {
