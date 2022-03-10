@@ -56,8 +56,8 @@ variable "region" {
 # (Ubuntu 20.04)
 # ubuntu-bionic-20.04-amd64-server
 variable "instance_ami" {
-  description = "AMI for aws EC2 instance - us-east-2 Ubuntu 20.04 - perf-cto-base-image-ubuntu20.04-pd-0.7.4"
-  default     = "ami-0d90a2f708abf0dba"
+  description = "AMI for aws EC2 instance - us-east-2 Ubuntu 20.04 - perf-cto-base-image-ubuntu20.04-pd-0.7.8"
+  default     = "ami-077adea1d6421f028"
 }
 
 variable "instance_device_name" {
