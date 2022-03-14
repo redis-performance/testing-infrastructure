@@ -4,7 +4,7 @@
 
 variable "setup_name" {
   description = "setup name"
-  default     = "perf-cto-RE-6.2.4-redisgraph-aof-write-primary"
+  default     = "perf-cto-RE-2nodes-rof-speedb"
 }
 variable "github_actor" {
   description = "The name of the person or app that initiated the deployment."
@@ -55,10 +55,11 @@ variable "region" {
   default = "us-east-2"
 }
 
-# CentOS Linux 7
+# (Ubuntu 18.04)
+# ubuntu-bionic-18.04-amd64-server-20201026
 variable "instance_ami" {
-  description = "AMI for aws EC2 instance -  CentOS Linux 7 7.9.2009 us-east-2"
-  default     = "ami-01e36b7901e884a10"
+  description = "AMI for aws EC2 instance - us-east-2 Ubuntu 18.04 - perf-cto-base-image-redis6.2.1"
+  default     = "ami-0a0a1355035f4e503"
 }
 
 variable "instance_device_name" {
@@ -125,22 +126,23 @@ variable "instance_network_interface_plus_count" {
 
 variable "os" {
   description = "os"
-  default     = "centos7"
+  default     = "ubuntu18.04"
 }
 
 variable "ssh_user" {
   description = "ssh_user"
-  default     = "centos"
+  default     = "ubuntu"
 }
 
 ################################################################################
 # Specific DB machine variables
 ################################################################################
-# r5.8xlarge 	32 VCPUs 	256 GB MEM
+# i3.8xlarge 	32 VCPUs 	
 variable "server_instance_type" {
   description = "type for aws EC2 instance"
-  default     = "r5d.8xlarge"
+  default     = "i3.8xlarge"
 }
+
 
 variable "server_instance_count" {
   default = "2"
