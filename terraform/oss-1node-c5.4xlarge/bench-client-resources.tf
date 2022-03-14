@@ -25,6 +25,7 @@ resource "aws_instance" "client" {
     github_org = "${var.github_org}"
     github_repo  = "${var.github_repo}"
     github_sha   = "${var.github_sha}"
+    timeout_secs = "${var.timeout_secs}"
   }
 
   tags = {
@@ -35,6 +36,7 @@ resource "aws_instance" "client" {
     github_org = "${var.github_org}"
     github_repo  = "${var.github_repo}"
     github_sha   = "${var.github_sha}"
+    timeout_secs = "${var.timeout_secs}"
   }
 
   ################################################################################
