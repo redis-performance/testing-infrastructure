@@ -21,7 +21,7 @@ resource "aws_instance" "client" {
     github_actor = "${var.github_actor}"
     github_repo  = "${var.github_repo}"
     github_sha   = "${var.github_sha}"
-timeout_secs = "${var.timeout_secs}"
+    timeout_secs = "${var.timeout_secs}"
   }
 
   tags = {
@@ -31,7 +31,7 @@ timeout_secs = "${var.timeout_secs}"
     github_actor = "${var.github_actor}"
     github_repo  = "${var.github_repo}"
     github_sha   = "${var.github_sha}"
-timeout_secs = "${var.timeout_secs}"
+    timeout_secs = "${var.timeout_secs}"
   }
 
   ################################################################################
