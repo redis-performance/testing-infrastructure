@@ -27,8 +27,13 @@ variable "github_org" {
 }
 
 variable "github_sha" {
-  description = "	The commit SHA that triggered the deployment."
+  description = "The commit SHA that triggered the deployment."
   default     = "N/A"
+}
+
+variable "timeout_secs" {
+  description = "The maximum time to wait prior destroying the VM via the watchdog."
+  default     = "3600"
 }
 
 ################################################################################
