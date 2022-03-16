@@ -160,7 +160,7 @@ variable "server_instance_cpu_core_count" {
 
 variable "client_instance_type" {
   description = "type for aws EC2 instance"
-  default     = "c5.4xlarge"
+  default     = "c5.9xlarge"
 }
 
 variable "client_instance_count" {
