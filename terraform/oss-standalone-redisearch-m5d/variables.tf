@@ -55,7 +55,7 @@ variable "region" {
 
 variable "instance_ami" {
   description = "AMI for aws EC2 instance - us-east-2 Ubuntu 18.04 - perf-cto-base-image-redis6.2.6perf-daemon-0.7.10"
-  default     = "ami-0f6d5ee815877afbb"
+  default     = "ami-0e0bd940393357953"
 }
 
 variable "instance_device_name" {
