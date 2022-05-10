@@ -49,34 +49,4 @@ timeout_secs = "${var.timeout_secs}"
       agent   = "false"
     }
   }
-
-  ################################################################################
-  # Deployment related
-  ################################################################################
-  # Install redis-server
-  provisioner "remote-exec" {
-    script = "./../../scripts/debian_install_redis.sh"
-    connection {
-      host        = "${self.public_ip}" # The `self` variable is like `this` in many programming languages
-      type        = "ssh"               # in this case, `self` is the resource (the server).
-      user        = "${var.ssh_user}"
-      private_key = "${file(var.private_key)}"
-      #need to increase timeout to larger then 5m for metal instances
-      timeout = "15m"
-      agent   = "false"
-    }
-  }
-  # Run redis-server
-  provisioner "remote-exec" {
-    script = "./../../scripts/run_standalone_oss.sh"
-    connection {
-      host        = "${self.public_ip}" # The `self` variable is like `this` in many programming languages
-      type        = "ssh"               # in this case, `self` is the resource (the server).
-      user        = "${var.ssh_user}"
-      private_key = "${file(var.private_key)}"
-      #need to increase timeout to larger then 5m for metal instances
-      timeout = "15m"
-      agent   = "false"
-    }
-  }
 }
