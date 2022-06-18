@@ -143,7 +143,7 @@ variable "server_instance_type" {
 }
 
 variable "server_instance_count" {
-  default = "2"
+  default = "4"
 }
 
 variable "server_instance_cpu_core_count" {

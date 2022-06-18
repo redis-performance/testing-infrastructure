@@ -2,10 +2,12 @@
 # Variables used for deployment tag
 ################################################################################
 
+
 variable "setup_name" {
   description = "setup name"
-  default     = "oss-redisjson-m5"
+  default     = "perf-cto-RE-1node-redisearch-m6i"
 }
+
 variable "github_actor" {
   description = "The name of the person or app that initiated the deployment."
   default     = "N/A"
@@ -55,11 +57,9 @@ variable "region" {
   default = "us-east-2"
 }
 
-# (Ubuntu 20.04)
-# ubuntu-bionic-20.04-amd64-server
 variable "instance_ami" {
-  description = "AMI for aws EC2 instance - us-east-2 Ubuntu 20.04 - perf-cto-base-image-ubuntu20.04-pd-0.7.40"
-  default     = "ami-0b24bb6749610519b"
+  description = "AMI for aws EC2 instance - us-east-2 Ubuntu 18.04 - perf-cto-base-image-redis6.2.6perf-daemon-0.7.10"
+  default     = "ami-05b481a200cf874b9"
 }
 
 variable "instance_device_name" {
@@ -70,7 +70,7 @@ variable "instance_device_name" {
 
 variable "instance_volume_type" {
   description = "EC2 instance volume_type"
-  default     = "gp2"
+  default     = "io1"
 }
 
 variable "instance_volume_iops" {
@@ -141,7 +141,7 @@ variable "ssh_user" {
 # m5d.8xlarge 	32 VCPUs 	128 GB MEM
 variable "server_instance_type" {
   description = "type for aws EC2 instance"
-  default     = "m5.8xlarge"
+  default     = "m6i.8xlarge"
 }
 
 
@@ -162,10 +162,9 @@ variable "server_instance_cpu_core_count" {
 
 variable "client_instance_type" {
   description = "type for aws EC2 instance"
-  default     = "c5.4xlarge"
+  default     = "c5.9xlarge"
 }
 
 variable "client_instance_count" {
   default = "1"
 }
-

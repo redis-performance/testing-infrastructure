@@ -4,25 +4,16 @@
 
 variable "setup_name" {
   description = "setup name"
-  default     = "oss-redisjson-m5"
+  default     = "oss-standalone-arm64-ubuntu22.04-c6gn.16xlarge"
 }
+
 variable "github_actor" {
   description = "The name of the person or app that initiated the deployment."
   default     = "N/A"
 }
 
 variable "github_repo" {
-  description = "	The owner and repository name. For example, testing-infrastructure."
-  default     = "N/A"
-}
-
-variable "triggering_env" {
-  description = "	The triggering environment. For example circleci."
-  default     = "N/A"
-}
-
-variable "github_org" {
-  description = "	The owner name. For example, RedisModules."
+  description = "	The owner and repository name. For example, octocat/Hello-World."
   default     = "N/A"
 }
 
@@ -46,6 +37,11 @@ variable "private_key" {
   default     = "/tmp/benchmarks.redislabs.pem"
 }
 
+variable "public_key" {
+  description = "public key"
+  default     = "~/.ssh/perf-cto-joint-tasks.pub"
+}
+
 variable "key_name" {
   description = "key name"
   default     = "perf-cto-joint-tasks"
@@ -55,11 +51,10 @@ variable "region" {
   default = "us-east-2"
 }
 
-# (Ubuntu 20.04)
-# ubuntu-bionic-20.04-amd64-server
+# (Ubuntu 22.04 LTS) ARM
 variable "instance_ami" {
-  description = "AMI for aws EC2 instance - us-east-2 Ubuntu 20.04 - perf-cto-base-image-ubuntu20.04-pd-0.7.40"
-  default     = "ami-0b24bb6749610519b"
+  description = "AMI for aws EC2 instance - us-east-2 Ubuntu 22.04"
+  default     = "ami-008f379ea5a8bd6ae"
 }
 
 variable "instance_device_name" {
@@ -67,6 +62,15 @@ variable "instance_device_name" {
   default     = "/dev/sda1"
 }
 
+variable "redis_module" {
+  description = "redis_module"
+  default     = "N/A"
+}
+
+variable "instance_volume_size" {
+  description = "EC2 instance volume_size"
+  default     = "128"
+}
 
 variable "instance_volume_type" {
   description = "EC2 instance volume_type"
@@ -78,28 +82,6 @@ variable "instance_volume_iops" {
   default     = "384"
 }
 
-variable "redis_module" {
-  description = "redis_module"
-  default     = "N/A"
-}
-
-variable "instance_volume_size" {
-  description = "EC2 instance volume_size"
-  default     = "1024"
-}
-
-
-variable "client_instance_volume_size" {
-  description = "EC2 instance volume_size"
-  default     = "256"
-}
-
-variable "client_instance_volume_type" {
-  description = "EC2 instance volume_type"
-  default     = "gp2"
-}
-
-
 variable "instance_volume_encrypted" {
   description = "EC2 instance instance_volume_encrypted"
   default     = "false"
@@ -108,6 +90,26 @@ variable "instance_volume_encrypted" {
 variable "instance_root_block_device_encrypted" {
   description = "EC2 instance instance_root_block_device_encrypted"
   default     = "false"
+}
+
+# Model	c6gn.16xlarge
+variable "instance_type" {
+  description = "type for aws EC2 instance"
+  default     = "c6gn.16xlarge"
+}
+
+variable "server_instance_count" {
+  default = "1"
+}
+
+
+variable "client_instance_count" {
+  default = "2"
+}
+
+variable "instance_cpu_core_count" {
+  description = "CPU core count for aws EC2 instance"
+  default     = 32
 }
 
 variable "instance_cpu_threads_per_core" {
@@ -127,45 +129,10 @@ variable "instance_network_interface_plus_count" {
 
 variable "os" {
   description = "os"
-  default     = "ubuntu20.04"
+  default     = "ubuntu22.04"
 }
 
 variable "ssh_user" {
   description = "ssh_user"
   default     = "ubuntu"
 }
-
-################################################################################
-# Specific DB machine variables
-################################################################################
-# m5d.8xlarge 	32 VCPUs 	128 GB MEM
-variable "server_instance_type" {
-  description = "type for aws EC2 instance"
-  default     = "m5.8xlarge"
-}
-
-
-variable "server_instance_count" {
-  default = "1"
-}
-
-variable "server_instance_cpu_core_count" {
-  description = "CPU core count for aws EC2 instance"
-  default     = 16
-}
-
-
-################################################################################
-# Specific Client machine variables
-################################################################################
-# c5.4xlarge 	16 VCPUs 
-
-variable "client_instance_type" {
-  description = "type for aws EC2 instance"
-  default     = "c5.4xlarge"
-}
-
-variable "client_instance_count" {
-  default = "1"
-}
-
