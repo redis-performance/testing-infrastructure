@@ -79,17 +79,17 @@ variable "redis_module" {
 
 variable "instance_volume_size" {
   description = "EC2 instance volume_size"
-  default     = "256"
+  default     = "96"
 }
 
 variable "instance_volume_type" {
   description = "EC2 instance volume_type"
-  default     = "gp2"
+  default     = "gp3"
 }
 
 variable "instance_volume_iops" {
   description = "EC2 instance volume_iops"
-  default     = "384"
+  default     = "100"
 }
 
 variable "instance_volume_encrypted" {

@@ -89,12 +89,12 @@ variable "instance_volume_iops" {
 
 variable "client_instance_volume_size" {
   description = "EC2 instance volume_size"
-  default     = "256"
+  default     = "96"
 }
 
 variable "client_instance_volume_type" {
   description = "EC2 instance volume_type"
-  default     = "gp2"
+  default     = "gp3"
 }
 
 
