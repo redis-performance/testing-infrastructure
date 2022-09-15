@@ -79,7 +79,7 @@ variable "redis_module" {
 
 variable "instance_volume_size" {
   description = "EC2 instance volume_size"
-  default     = "96"
+  default     = "256"
 }
 
 variable "instance_volume_type" {
