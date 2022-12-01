@@ -138,36 +138,17 @@ variable "ssh_user" {
   default     = "ubuntu"
 }
 
-################################################################################
-# Specific DB machine variables
-################################################################################
-# m5d.8xlarge 	32 VCPUs 	128 GB MEM
-variable "server_instance_type" {
+variable "runner_instance_type" {
   description = "type for aws EC2 instance"
-  default     = "m5.8xlarge"
+  default     = "t2.xlarge"
 }
 
 
-variable "server_instance_count" {
+variable "runner_instance_count" {
   default = "1"
 }
 
-variable "server_instance_cpu_core_count" {
+variable "runner_instance_cpu_core_count" {
   description = "CPU core count for aws EC2 instance"
-  default     = 16
-}
-
-
-################################################################################
-# Specific Client machine variables
-################################################################################
-# c5.4xlarge 	16 VCPUs 
-
-variable "client_instance_type" {
-  description = "type for aws EC2 instance"
-  default     = "c5.4xlarge"
-}
-
-variable "client_instance_count" {
-  default = "1"
+  default     = 4
 }

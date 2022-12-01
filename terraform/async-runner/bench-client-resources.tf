@@ -1,10 +1,63 @@
-resource "aws_instance" "server" {
-  count                  = "${var.server_instance_count}"
+resource "aws_default_subnet" "default_subnet" {
+  availability_zone = "us-east-2a"
+
+}
+
+resource "aws_default_vpc" "default" {
+}
+
+resource "aws_security_group" "async_runner" {
+  name        = "async_runner"
+  description = "async_runner"
+  vpc_id      = "${aws_default_vpc.default.id}"
+
+#  ingress {
+#    description      = "TLS from VPC"
+#    from_port        = 0
+#    to_port          = 0
+#    protocol         = "tcp"
+#    security_groups = ["${aws_security_group.async_runner.id}"]
+#  }
+
+  egress {
+    from_port        = 0
+    to_port          = 0
+    protocol         = "-1"
+    cidr_blocks      = ["0.0.0.0/0"]
+    ipv6_cidr_blocks = ["::/0"]
+  }
+
+  tags = {
+    Name = "async_runner"
+  }
+}
+
+resource "aws_security_group_rule" "main_ingress_rule" {
+  type              = "ingress"
+  from_port         = 0
+  to_port           = 0
+  protocol          = "tcp"
+  source_security_group_id = "${aws_security_group.async_runner.id}"
+  security_group_id = "${aws_security_group.async_runner.id}"
+}
+
+resource "aws_security_group_rule" "debug_ssh" {
+  type              = "ingress"
+  from_port         = 0
+  to_port           = 22
+  protocol          = "tcp"
+  cidr_blocks = ["213.159.37.109/32"]
+  security_group_id = "${aws_security_group.async_runner.id}"
+}
+
+
+resource "aws_instance" "runner" {
+  count                  = "${var.runner_instance_count}"
   ami                    = "${var.instance_ami}"
-  instance_type          = "${var.server_instance_type}"
+  instance_type          = "${var.runner_instance_type}"
   subnet_id              = "${aws_default_subnet.default_subnet.id}"
 #  vpc_security_group_ids = ["${data.terraform_remote_state.shared_resources.outputs.performance_cto_sg_id}"]
-  security_groups = ["${aws_security_group.perf_test.id}"]
+  security_groups        = ["${aws_security_group.async_runner.id}"]
   key_name               = "${var.key_name}"
   associate_public_ip_address = "true"
 #  placement_group      = "${data.terraform_remote_state.shared_resources.outputs.perf_cto_pg_name}"
@@ -18,29 +71,29 @@ resource "aws_instance" "server" {
   }
 
   volume_tags = {
-    Name        = "ebs_block_device-${var.setup_name}-DB-${count.index + 1}"
+    Name        = "ebs_block_device-${var.setup_name}-CLIENT-${count.index + 1}"
     setup        = "${var.setup_name}"
     triggering_env = "${var.triggering_env}"
     github_actor = "${var.github_actor}"
     github_org = "${var.github_org}"
     github_repo  = "${var.github_repo}"
     github_sha   = "${var.github_sha}"
-timeout_secs = "${var.timeout_secs}"
+    timeout_secs = "${var.timeout_secs}"
   }
 
   tags = {
-    Name         = "${var.setup_name}-DB-${count.index + 1}"
+    Name         = "${var.setup_name}-CLIENT-${count.index + 1}"
     setup        = "${var.setup_name}"
     triggering_env = "${var.triggering_env}"
     github_actor = "${var.github_actor}"
     github_org = "${var.github_org}"
     github_repo  = "${var.github_repo}"
     github_sha   = "${var.github_sha}"
-timeout_secs = "${var.timeout_secs}"
+    timeout_secs = "${var.timeout_secs}"
   }
 
   ################################################################################
-  # This will ensure we wait here until the instance is ready to receive the ssh connection 
+  # This will ensure we wait here until the instance is ready to receive the ssh connection
   ################################################################################
   provisioner "remote-exec" {
     script = "./../scripts/wait_for_instance.sh"
@@ -50,7 +103,7 @@ timeout_secs = "${var.timeout_secs}"
       user        = "${var.ssh_user}"
       private_key = "${file(var.private_key_path)}"
       #need to increase timeout to larger then 5m for metal instances
-      timeout = "15m"
+      timeout = "5m"
       agent   = "false"
     }
   }
