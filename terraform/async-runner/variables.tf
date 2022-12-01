@@ -4,7 +4,7 @@
 
 variable "setup_name" {
   description = "setup name"
-  default     = "oss-redisearch-m5"
+  default     = "async-runner"
 }
 variable "github_actor" {
   description = "The name of the person or app that initiated the deployment."
@@ -88,18 +88,18 @@ variable "redis_module" {
 
 variable "instance_volume_size" {
   description = "EC2 instance volume_size"
-  default     = "1024"
+  default     = "100"
 }
 
 
 variable "client_instance_volume_size" {
   description = "EC2 instance volume_size"
-  default     = "256"
+  default     = "100"
 }
 
 variable "client_instance_volume_type" {
   description = "EC2 instance volume_type"
-  default     = "gp3"
+  default     = "gp2"
 }
 
 
