@@ -73,7 +73,7 @@ variable "instance_device_name" {
 
 variable "instance_volume_type" {
   description = "EC2 instance volume_type"
-  default     = "gp3"
+  default     = "gp2"
 }
 
 variable "instance_volume_iops" {
