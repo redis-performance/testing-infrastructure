@@ -7,8 +7,8 @@ resource "aws_default_vpc" "default" {
 }
 
 resource "aws_security_group" "async_runner" {
-  name        = "async_runner"
-  description = "async_runner"
+  name        = "${var.setup_name}-async_runner"
+  description = "${var.setup_name}-async_runner"
   vpc_id      = "${aws_default_vpc.default.id}"
 
 #  ingress {
@@ -71,7 +71,7 @@ resource "aws_instance" "runner" {
   }
 
   volume_tags = {
-    Name        = "ebs_block_device-${var.setup_name}-CLIENT-${count.index + 1}"
+    Name        = "ebs_block_device-${var.setup_name}-async_runner-${count.index + 1}"
     setup        = "${var.setup_name}"
     triggering_env = "${var.triggering_env}"
     github_actor = "${var.github_actor}"
@@ -82,7 +82,7 @@ resource "aws_instance" "runner" {
   }
 
   tags = {
-    Name         = "${var.setup_name}-CLIENT-${count.index + 1}"
+    Name         = "${var.setup_name}-async_runner-${count.index + 1}"
     setup        = "${var.setup_name}"
     triggering_env = "${var.triggering_env}"
     github_actor = "${var.github_actor}"
