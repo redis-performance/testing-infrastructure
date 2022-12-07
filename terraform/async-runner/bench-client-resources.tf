@@ -28,7 +28,14 @@ resource "aws_security_group" "async_runner" {
   }
 
   tags = {
-    Name = "async_runner"
+    Name = "${var.setup_name}-async_runner"
+    setup        = "${var.setup_name}"
+    triggering_env = "${var.triggering_env}"
+    github_actor = "${var.github_actor}"
+    github_org = "${var.github_org}"
+    github_repo  = "${var.github_repo}"
+    github_sha   = "${var.github_sha}"
+    timeout_secs = "${var.timeout_secs}"
   }
 }
 
