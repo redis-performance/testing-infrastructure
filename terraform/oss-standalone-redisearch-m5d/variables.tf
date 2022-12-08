@@ -46,12 +46,12 @@ variable "private_key" {
 
 variable "private_key_path" {
   description = "private key"
-  default     = "/Users/anton.tokarev/.ssh/atokarev-softeq"
+  default     = "/tmp/benchmarks.redislabs.pem"
 }
 
 variable "key_name" {
   description = "key name"
-  default     = "atokarev"
+  default     = "perf-cto-joint-tasks"
 }
 
 variable "region" {
@@ -62,7 +62,7 @@ variable "region" {
 # ubuntu-bionic-20.04-amd64-server
 variable "instance_ami" {
   description = "AMI for aws EC2 instance - us-east-2 Ubuntu 20.04 - perf-cto-base-image-ubuntu20.04-pd-0.7.40"
-  default     = "ami-0cb81cb394fc2e305"
+  default     = "ami-0cdc8d84a10ed7ad6"
 }
 
 variable "instance_device_name" {
