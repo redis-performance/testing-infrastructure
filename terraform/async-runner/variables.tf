@@ -140,7 +140,7 @@ variable "ssh_user" {
 
 variable "runner_instance_type" {
   description = "type for aws EC2 instance"
-  default     = "t2.xlarge"
+  default     = "c5.large"
 }
 
 
