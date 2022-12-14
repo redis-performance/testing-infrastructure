@@ -44,11 +44,6 @@ variable "private_key" {
   default     = "/tmp/benchmarks.redislabs.pem"
 }
 
-variable "private_key_path" {
-  description = "private key"
-  default     = "/tmp/benchmarks.redislabs.pem"
-}
-
 variable "key_name" {
   description = "key name"
   default     = "perf-cto-joint-tasks"
