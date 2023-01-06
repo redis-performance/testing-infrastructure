@@ -4,7 +4,7 @@
 
 variable "setup_name" {
   description = "setup name"
-  default     = "oss-standalone-redistimeseries-m5"
+  default     = "oss-elasticsearch8-m5d"
 }
 variable "github_actor" {
   description = "The name of the person or app that initiated the deployment."
@@ -46,14 +46,9 @@ variable "private_key" {
   default     = "/tmp/benchmarks.redislabs.pem"
 }
 
-variable "public_key" {
-  description = "public key"
-  default     = "~/.ssh/perf-ci.pub"
-}
-
 variable "key_name" {
   description = "key name"
-  default     = "perf-ci"
+  default     = "perf-cto-us-east-2"
 }
 
 variable "region" {
@@ -61,10 +56,10 @@ variable "region" {
 }
 
 # (Ubuntu 20.04)
-# ubuntu-bionic-20.04-amd64-server
+# us-east-2	focal	20.04 LTS	arm64	hvm:ebs-ssd	20210325
 variable "instance_ami" {
-  description = "AMI for aws EC2 instance - us-east-2 Ubuntu 20.04 - perf-cto-base-image-ubuntu20.04-pd-0.7.40"
-  default     = "ami-0cdc8d84a10ed7ad6"
+  description = "AMI for aws EC2 instance - us-east-2	focal	20.04 LTS	arm64	hvm:ebs-ssd	20210325"
+  default     = "ami-06e64809872e814b0"
 }
 
 variable "instance_device_name" {
@@ -79,18 +74,30 @@ variable "redis_module" {
 
 variable "instance_volume_size" {
   description = "EC2 instance volume_size"
-  default     = "256"
+  default     = "1024"
 }
 
 variable "instance_volume_type" {
   description = "EC2 instance volume_type"
-  default     = "gp3"
+  default     = "io1"
 }
+
 
 variable "instance_volume_iops" {
   description = "EC2 instance volume_iops"
-  default     = "100"
+  default     = "3000"
 }
+
+variable "client_instance_volume_size" {
+  description = "EC2 instance volume_size"
+  default     = "256"
+}
+
+variable "client_instance_volume_type" {
+  description = "EC2 instance volume_type"
+  default     = "gp2"
+}
+
 
 variable "instance_volume_encrypted" {
   description = "EC2 instance instance_volume_encrypted"
@@ -130,11 +137,12 @@ variable "ssh_user" {
 ################################################################################
 # Specific DB machine variables
 ################################################################################
-# m5.8xlarge 	32 VCPUs 	128 GB MEM
+# m5d.8xlarge 	32 VCPUs 	128 GB MEM
 variable "server_instance_type" {
   description = "type for aws EC2 instance"
-  default     = "m5.8xlarge"
+  default     = "m5d.8xlarge"
 }
+
 
 variable "server_instance_count" {
   default = "1"
@@ -149,13 +157,14 @@ variable "server_instance_cpu_core_count" {
 ################################################################################
 # Specific Client machine variables
 ################################################################################
-# c5.4xlarge 	16 VCPUs 
+# m5.8xlarge 	32 VCPUs 	128 GB MEM
 
 variable "client_instance_type" {
   description = "type for aws EC2 instance"
-  default     = "c5.4xlarge"
+  default     = "m5.8xlarge"
 }
 
 variable "client_instance_count" {
   default = "1"
 }
+
