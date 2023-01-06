@@ -1,4 +1,3 @@
-
 resource "aws_instance" "client" {
   count                  = "${var.client_instance_count}"
   ami                    = "${var.instance_ami}"
@@ -25,7 +24,7 @@ resource "aws_instance" "client" {
     github_org = "${var.github_org}"
     github_repo  = "${var.github_repo}"
     github_sha   = "${var.github_sha}"
-timeout_secs = "${var.timeout_secs}"
+    timeout_secs = "${var.timeout_secs}"
   }
 
   tags = {
@@ -36,7 +35,7 @@ timeout_secs = "${var.timeout_secs}"
     github_org = "${var.github_org}"
     github_repo  = "${var.github_repo}"
     github_sha   = "${var.github_sha}"
-timeout_secs = "${var.timeout_secs}"
+    timeout_secs = "${var.timeout_secs}"
   }
 
   ################################################################################
