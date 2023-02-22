@@ -78,7 +78,7 @@ variable "instance_volume_size" {
 
 variable "instance_volume_type" {
   description = "EC2 instance volume_type"
-  default     = "io1"
+  default     = "gp3"
 }
 
 
@@ -94,7 +94,7 @@ variable "client_instance_volume_size" {
 
 variable "client_instance_volume_type" {
   description = "EC2 instance volume_type"
-  default     = "gp2"
+  default     = "gp3"
 }
 
 
