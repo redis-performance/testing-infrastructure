@@ -15,5 +15,5 @@ output "client_private_ip" {
 }
 
 output "ssh_user" {
-  value = "${var.ssh_user}"
+  value = var.ssh_user
 }
