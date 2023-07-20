@@ -3,6 +3,7 @@ provider "aws" {
   region = "${var.region}"
 }
 
+
 ################################################################################
 # This is the shared resources bucket key -- you will need it across environments like security rules,etc...
 # !! do not change this !!

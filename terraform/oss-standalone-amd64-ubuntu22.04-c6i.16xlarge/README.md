@@ -28,8 +28,8 @@ export OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES
 
 The terraform script expects the following public private keys to be present on ~/.ssh/ dir:
 ```
-~/.ssh/perf-cto-joint-tasks.pem
-~/.ssh/perf-cto-joint-tasks.pub
+~/.ssh/perf-ci.pem
+~/.ssh/perf-ci.pub
 ```
 
 ##### Deployment steps

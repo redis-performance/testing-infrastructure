@@ -75,3 +75,9 @@ override.tf.json
 
 # Redis snapshots
 *.rdb
+
+# log files / benchmark outputs
+
+*.log
+*.txt
+*.json

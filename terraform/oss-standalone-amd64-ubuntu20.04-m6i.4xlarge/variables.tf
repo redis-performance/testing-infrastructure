@@ -38,12 +38,12 @@ variable "private_key" {
 
 variable "public_key" {
   description = "public key"
-  default     = "~/.ssh/perf-cto-joint-tasks.pub"
+  default     = "~/.ssh/perf-ci.pub"
 }
 
 variable "key_name" {
   description = "key name"
-  default     = "perf-cto-joint-tasks"
+  default     = "perf-ci"
 }
 
 variable "region" {

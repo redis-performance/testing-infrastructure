@@ -50,7 +50,7 @@ variable "private_key" {
 
 variable "key_name" {
   description = "key name"
-  default     = "perf-cto-joint-tasks"
+  default     = "perf-ci"
 }
 
 variable "region" {
@@ -70,7 +70,7 @@ variable "instance_device_name" {
 
 variable "instance_volume_type" {
   description = "EC2 instance volume_type"
-  default     = "io1"
+  default     = "gp3"
 }
 
 variable "instance_volume_iops" {
@@ -96,7 +96,7 @@ variable "client_instance_volume_size" {
 
 variable "client_instance_volume_type" {
   description = "EC2 instance volume_type"
-  default     = "gp2"
+  default     = "gp3"
 }
 
 
