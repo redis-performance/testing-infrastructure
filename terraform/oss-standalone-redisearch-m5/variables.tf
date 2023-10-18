@@ -58,8 +58,8 @@ variable "region" {
 # (Ubuntu 20.04)
 # ubuntu-bionic-20.04-amd64-server
 variable "instance_ami" {
-  description = "AMI for aws EC2 instance - us-east-2 Ubuntu 20.04 - perf-cto-base-image-ubuntu20.04-redis-7.1.241"
-  default     = "ami-078c8a93768628849"
+  description = "AMI for aws EC2 instance - us-east-2 Ubuntu 20.04 - perf-cto-base-image-ubuntu20.04-redis-7.1.241-tuned-latency"
+  default     = "ami-0e64e0b751414b32e"
 }
 
 variable "instance_device_name" {
@@ -138,10 +138,10 @@ variable "ssh_user" {
 ################################################################################
 # Specific DB machine variables
 ################################################################################
-# m5d.8xlarge 	32 VCPUs 	128 GB MEM
+# m6i.8xlarge 	32 VCPUs 	128 GB MEM
 variable "server_instance_type" {
   description = "type for aws EC2 instance"
-  default     = "m5.8xlarge"
+  default     = "m6i.8xlarge"
 }
 
 
@@ -154,6 +154,10 @@ variable "server_instance_cpu_core_count" {
   default     = 16
 }
 
+variable "server_instance_cpu_threads_per_core" {
+  description = "CPU threads per CORE"
+  default     = 1
+}
 
 ################################################################################
 # Specific Client machine variables
