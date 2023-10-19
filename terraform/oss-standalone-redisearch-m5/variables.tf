@@ -141,7 +141,7 @@ variable "ssh_user" {
 # m5.8xlarge 	32 VCPUs 	128 GB MEM
 variable "server_instance_type" {
   description = "type for aws EC2 instance"
-  default     = "m6i.8xlarge"
+  default     = "m5.8xlarge"
 }
 
 
