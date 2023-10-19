@@ -138,10 +138,10 @@ variable "ssh_user" {
 ################################################################################
 # Specific DB machine variables
 ################################################################################
-# m6i.8xlarge 	32 VCPUs 	128 GB MEM
+# m5.8xlarge 	32 VCPUs 	128 GB MEM
 variable "server_instance_type" {
   description = "type for aws EC2 instance"
-  default     = "m6i.8xlarge"
+  default     = "m5.8xlarge"
 }
 
 
