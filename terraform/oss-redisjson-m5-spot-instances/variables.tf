@@ -4,7 +4,7 @@
 
 variable "setup_name" {
   description = "setup name"
-  default     = "oss-redisbloom-m5-spot-instances"
+  default     = "oss-redisjson-m5-spot-instances"
 }
 variable "github_actor" {
   description = "The name of the person or app that initiated the deployment."
