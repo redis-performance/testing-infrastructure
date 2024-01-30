@@ -17,6 +17,7 @@ resource "aws_instance" "consumer" {
 
   volume_tags = {
     Environment    = "${var.environment}"
+    Project        = "${var.environment}"
     Name           = "ebs_block_device-${var.setup_name}-consumer-${count.index + 1}"
     setup          = "${var.setup_name}"
     triggering_env = "${var.triggering_env}"
@@ -28,6 +29,7 @@ resource "aws_instance" "consumer" {
 
   tags = {
     Environment    = "${var.environment}"
+    Project        = "${var.environment}"
     Name           = "${var.setup_name}-consumer-${count.index + 1}"
     setup          = "${var.setup_name}"
     triggering_env = "${var.triggering_env}"

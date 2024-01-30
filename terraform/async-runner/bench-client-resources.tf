@@ -18,6 +18,7 @@ resource "aws_instance" "runner" {
 
   volume_tags = {
     Environment    = "${var.environment}"
+    Project        = "${var.environment}"
     Name           = "ebs_block_device-${var.setup_name}-async_runner-${count.index + 1}"
     setup          = "${var.setup_name}"
     triggering_env = "${var.triggering_env}"
@@ -30,6 +31,7 @@ resource "aws_instance" "runner" {
 
   tags = {
     Environment    = "${var.environment}"
+    Project        = "${var.environment}"
     Name           = "${var.setup_name}-async_runner-${count.index + 1}"
     setup          = "${var.setup_name}"
     triggering_env = "${var.triggering_env}"
