@@ -6,7 +6,7 @@ resource "aws_instance" "server_2a" {
   subnet_id              = data.terraform_remote_state.shared_resources.outputs.subnet_public_id
   vpc_security_group_ids = ["${data.terraform_remote_state.shared_resources.outputs.performance_cto_sg_id}"]
   key_name               = var.key_name
-  availability_zone = "us-east-2a"
+  availability_zone      = "us-east-2a"
 
   root_block_device {
     volume_size           = var.instance_volume_size
@@ -16,6 +16,7 @@ resource "aws_instance" "server_2a" {
   }
 
   volume_tags = {
+    Environment    = "${var.environment}"
     Name           = "ebs_block_device-${var.setup_name}-DB-us-east-2a-${count.index + 1}"
     setup          = "${var.setup_name}"
     triggering_env = "${var.triggering_env}"
@@ -26,6 +27,7 @@ resource "aws_instance" "server_2a" {
   }
 
   tags = {
+    Environment    = "${var.environment}"
     Name           = "${var.setup_name}-DB-us-east-2a-${count.index + 1}"
     setup          = "${var.setup_name}"
     triggering_env = "${var.triggering_env}"

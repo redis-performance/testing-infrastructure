@@ -5,7 +5,7 @@ resource "aws_instance" "server" {
   instance_type          = var.server_instance_type
   subnet_id              = data.terraform_remote_state.shared_resources.outputs.subnet_public_id
   vpc_security_group_ids = ["${data.terraform_remote_state.shared_resources.outputs.performance_cto_sg_id}"]
-  key_name               = "${var.key_name}"
+  key_name               = var.key_name
 
   root_block_device {
     volume_size           = var.instance_volume_size
@@ -16,6 +16,7 @@ resource "aws_instance" "server" {
   }
 
   volume_tags = {
+    Environment    = "${var.environment}"
     Name           = "ebs_block_device-${var.setup_name}-DB-${count.index + 1}"
     setup          = "${var.setup_name}"
     triggering_env = "${var.triggering_env}"
@@ -26,6 +27,7 @@ resource "aws_instance" "server" {
   }
 
   tags = {
+    Environment    = "${var.environment}"
     Name           = "${var.setup_name}-DB-${count.index + 1}"
     setup          = "${var.setup_name}"
     triggering_env = "${var.triggering_env}"

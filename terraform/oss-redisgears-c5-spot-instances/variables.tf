@@ -21,6 +21,10 @@ variable "triggering_env" {
   default     = "N/A"
 }
 
+variable "environment" {
+  description = "	The cost tag."
+  default     = "RedisGears"
+}
 variable "github_org" {
   description = "	The owner name. For example, RedisModules."
   default     = "N/A"

@@ -30,6 +30,7 @@ resource "aws_instance" "'''
   }
 
   volume_tags = {
+    Environment = "${var.environment}"
     Name        = "ebs_block_device-${var.setup_name}-"""
         + instance_type
         + """"
@@ -43,6 +44,7 @@ resource "aws_instance" "'''
   }
 
   tags = {
+    Environment = "${var.environment}"
     Name         = "${var.setup_name}-"""
         + instance_type
         + """"
