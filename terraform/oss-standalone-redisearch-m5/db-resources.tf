@@ -14,7 +14,7 @@ resource "aws_instance" "server" {
     core_count       = var.server_instance_cpu_core_count
     threads_per_core = var.server_instance_cpu_threads_per_core
   }
-  
+
   root_block_device {
     volume_size           = var.instance_volume_size
     volume_type           = var.instance_volume_type
@@ -23,6 +23,7 @@ resource "aws_instance" "server" {
   }
 
   volume_tags = {
+    Environment    = "${var.environment}"
     Name           = "ebs_block_device-${var.setup_name}-DB-${count.index + 1}"
     setup          = "${var.setup_name}"
     triggering_env = "${var.triggering_env}"
@@ -34,6 +35,7 @@ resource "aws_instance" "server" {
   }
 
   tags = {
+    Environment    = "${var.environment}"
     Name           = "${var.setup_name}-DB-${count.index + 1}"
     setup          = "${var.setup_name}"
     triggering_env = "${var.triggering_env}"

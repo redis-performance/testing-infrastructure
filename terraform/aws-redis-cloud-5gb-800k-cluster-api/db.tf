@@ -22,7 +22,7 @@ resource "rediscloud_subscription" "subscription-resource" {
     region {
       region                       = "us-east-2"
       networking_deployment_cidr   = "10.3.13.0/24"
-      networking_vpc_id = "${data.terraform_remote_state.shared_resources.outputs.performance_cto_vpc_id}"
+      networking_vpc_id            = data.terraform_remote_state.shared_resources.outputs.performance_cto_vpc_id
       preferred_availability_zones = ["us-east-2a"]
     }
   }

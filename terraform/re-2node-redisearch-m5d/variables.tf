@@ -21,6 +21,11 @@ variable "triggering_env" {
   default     = "N/A"
 }
 
+variable "environment" {
+  description = "	The cost tag."
+  default     = "N/A"
+}
+
 variable "github_org" {
   description = "	The owner name. For example, RedisModules."
   default     = "N/A"
@@ -56,10 +61,10 @@ variable "region" {
 }
 
 # (Ubuntu 18.04)
-# ubuntu-bionic-18.04-amd64-server-20201026
+# ubuntu-bionic-18.04-amd64-server-
 variable "instance_ami" {
   description = "AMI for aws EC2 instance - us-east-2 Ubuntu 18.04 - perf-cto-base-image-redis6.2.1"
-  default     = "ami-05b481a200cf874b9"
+  default     = "ami-0bb220fc4bffd88dd"
 }
 
 variable "instance_device_name" {

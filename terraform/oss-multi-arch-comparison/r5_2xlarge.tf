@@ -18,6 +18,7 @@ resource "aws_instance" "r5_2xlarge" {
   }
 
   volume_tags = {
+    Environment    = "${var.environment}"
     Name           = "ebs_block_device-${var.setup_name}-r5.2xlarge"
     setup          = "${var.setup_name}"
     triggering_env = "${var.triggering_env}"
@@ -29,6 +30,7 @@ resource "aws_instance" "r5_2xlarge" {
   }
 
   tags = {
+    Environment    = "${var.environment}"
     Name           = "${var.setup_name}-r5.2xlarge"
     triggering_env = "${var.triggering_env}"
     github_actor   = "${var.github_actor}"

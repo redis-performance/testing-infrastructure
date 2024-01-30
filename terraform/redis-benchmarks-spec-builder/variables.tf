@@ -26,6 +26,11 @@ variable "timeout_secs" {
   default     = "3600"
 }
 
+variable "environment" {
+  description = "	The cost tag."
+  default     = "OSS"
+}
+
 
 
 ################################################################################

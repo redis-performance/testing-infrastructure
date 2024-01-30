@@ -1,28 +1,30 @@
 resource "aws_eip_association" "proxy_eip_assoc" {
-  instance_id   = "${aws_instance.proxy_instance[0].id}"
+  instance_id   = aws_instance.proxy_instance[0].id
   allocation_id = data.terraform_remote_state.shared_resources.outputs.benchmarks_redislabs_eip_id
 }
 
 resource "aws_instance" "proxy_instance" {
-  disable_api_termination              = true
-  count                  = "${var.server_instance_count}"
-  ami                    = "${var.instance_ami}"
-  instance_type          = "${var.instance_type}"
-  subnet_id              = data.terraform_remote_state.shared_resources.outputs.subnet_public_id
-  vpc_security_group_ids = ["${data.terraform_remote_state.shared_resources.outputs.performance_cto_sg_id}"]
-  key_name               = "${var.key_name_proxy}"
-  cpu_core_count         = "${var.instance_cpu_core_count}"
+  disable_api_termination = true
+  count                   = var.server_instance_count
+  ami                     = var.instance_ami
+  instance_type           = var.instance_type
+  subnet_id               = data.terraform_remote_state.shared_resources.outputs.subnet_public_id
+  vpc_security_group_ids  = ["${data.terraform_remote_state.shared_resources.outputs.performance_cto_sg_id}"]
+  key_name                = var.key_name_proxy
+  cpu_core_count          = var.instance_cpu_core_count
 
-  cpu_threads_per_core = "${var.instance_cpu_threads_per_core_hyperthreading}"
-  placement_group      = "${data.terraform_remote_state.shared_resources.outputs.perf_cto_pg_name}"
+  cpu_threads_per_core = var.instance_cpu_threads_per_core_hyperthreading
+  placement_group      = data.terraform_remote_state.shared_resources.outputs.perf_cto_pg_name
 
 
   volume_tags = {
-    Name = "ebs_block_device-benchmarks.redislabs.com-PROXY-${count.index + 1}"
+    Environment = "${var.environment}"
+    Name        = "ebs_block_device-benchmarks.redislabs.com-PROXY-${count.index + 1}"
   }
 
   tags = {
-    Name = "benchmarks.redislabs.com-PROXY-${count.index + 1}"
+    Environment = "${var.environment}"
+    Name        = "benchmarks.redislabs.com-PROXY-${count.index + 1}"
   }
 
 

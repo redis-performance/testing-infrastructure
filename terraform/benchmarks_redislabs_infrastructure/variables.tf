@@ -2,7 +2,7 @@
 
 variable "setup_name" {
   description = "setup name"
-  default = "perf-cto-monitoring-servers-ubuntu16.04"
+  default     = "perf-cto-monitoring-servers-ubuntu16.04"
 }
 
 variable "region" {
@@ -19,29 +19,29 @@ variable "instance_ami" {
 }
 
 variable "instance_device_name" {
-    description = "EC2 instance device name"
-  default = "/dev/sda1"
+  description = "EC2 instance device name"
+  default     = "/dev/sda1"
 }
 
 variable "instance_type" {
   description = "type for aws EC2 instance"
   #general purpose dont need a big thing
-  default     = "c5.xlarge"
+  default = "c5.xlarge"
 }
 
 variable "redis_module" {
- description = "redis_module"
+  description = "redis_module"
   default     = "perf-cto-common"
 }
 
 variable "instance_volume_size" {
-    description = "EC2 instance volume_size"
-  default = "1024"
+  description = "EC2 instance volume_size"
+  default     = "1024"
 }
 
 variable "instance_volume_iops" {
-    description = "EC2 instance volume_iops"
-  default = "1000"
+  description = "EC2 instance volume_iops"
+  default     = "1000"
 }
 
 variable "instance_type_5m" {
@@ -74,31 +74,31 @@ variable "instance_network_interface_plus_count" {
 
 
 variable "os" {
- description = "os"
+  description = "os"
   default     = "ubuntu16.04"
 }
 
 
 variable "ssh_user" {
- description = "ssh_user"
+  description = "ssh_user"
   default     = "ubuntu"
 }
 
 
 variable "private_key" {
- description = "private key"
+  description = "private key"
   default     = "./../../../pems/perf-cto-us-east-2.pem"
 }
 
 
 variable "public_key" {
-   description = "public key"
+  description = "public key"
   default     = "./../../../pems/perf-cto-us-east-2.pub"
 }
 
 
 variable "key_name" {
-   description = "key name"
+  description = "key name"
   default     = "performance-cto-us-east-2"
 }
 

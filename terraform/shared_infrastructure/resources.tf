@@ -23,7 +23,8 @@ resource "aws_vpc" "vpc" {
 resource "aws_eip" "benchmarks_redislabs_eip" {
   vpc = true
   tags = {
-    Name = "benchmarks-redislabs-eip"
+    Environment = "${var.environment}"
+    Name        = "benchmarks-redislabs-eip"
   }
 }
 
@@ -31,7 +32,8 @@ resource "aws_eip" "benchmarks_redislabs_eip" {
 resource "aws_eip" "perf_cto_eip" {
   vpc = true
   tags = {
-    Name = "perf-cto-monitoring-eip"
+    Environment = "${var.environment}"
+    Name        = "perf-cto-monitoring-eip"
   }
 }
 
@@ -39,7 +41,8 @@ resource "aws_eip" "perf_cto_eip" {
 resource "aws_eip" "perf_cto_monitoring_redistimeseries_cluster_ip" {
   vpc = true
   tags = {
-    Name = "perf-cto-monitoring-redistimeseries-cluster-ip"
+    Environment = "${var.environment}"
+    Name        = "perf-cto-monitoring-redistimeseries-cluster-ip"
   }
 }
 
@@ -47,7 +50,8 @@ resource "aws_eip" "perf_cto_monitoring_redistimeseries_cluster_ip" {
 resource "aws_eip" "perf_cto_jumpbox_redisgraph_ip" {
   vpc = true
   tags = {
-    Name = "perf-cto-jumpbox-redisgraph-ip"
+    Environment = "${var.environment}"
+    Name        = "perf-cto-jumpbox-redisgraph-ip"
   }
 }
 

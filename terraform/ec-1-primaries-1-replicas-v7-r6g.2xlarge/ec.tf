@@ -20,8 +20,8 @@ resource "aws_elasticache_replication_group" "rg" {
   # The maximum permitted value for number_cache_clusters is 6 (1 primary plus 5 replicas).
   # https://docs.aws.amazon.com/AmazonElastiCache/latest/red-ug/Scaling.RedisReplGrps.html
   replicas_per_node_group = 1
-  security_group_ids    = ["${data.terraform_remote_state.shared_resources.outputs.performance_cto_sg_id}"]
-  subnet_group_name     = "ec-subnet"
+  security_group_ids      = ["${data.terraform_remote_state.shared_resources.outputs.performance_cto_sg_id}"]
+  subnet_group_name       = "ec-subnet"
 
   # A user-created description for the replication group.
   description = "rg-1-primaries-1-replicas-v7-r6g-2xlarge"
