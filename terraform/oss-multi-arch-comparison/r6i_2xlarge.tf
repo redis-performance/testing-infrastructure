@@ -19,6 +19,7 @@ resource "aws_instance" "r6i_2xlarge" {
 
   volume_tags = {
     Environment    = "${var.environment}"
+    Project        = "${var.environment}"
     Name           = "ebs_block_device-${var.setup_name}-r6i.2xlarge"
     setup          = "${var.setup_name}"
     triggering_env = "${var.triggering_env}"
@@ -31,6 +32,7 @@ resource "aws_instance" "r6i_2xlarge" {
 
   tags = {
     Environment    = "${var.environment}"
+    Project        = "${var.environment}"
     Name           = "${var.setup_name}-r6i.2xlarge"
     triggering_env = "${var.triggering_env}"
     github_actor   = "${var.github_actor}"

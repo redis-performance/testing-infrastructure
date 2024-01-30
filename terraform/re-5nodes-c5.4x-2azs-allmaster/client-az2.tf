@@ -19,6 +19,7 @@ resource "aws_instance" "az2_client" {
 
   volume_tags = {
     Environment    = "${var.environment}"
+    Project        = "${var.environment}"
     Name           = "ebs_block_device-${var.setup_name}-CLIENT-us_east_2b-${count.index + 1}"
     setup          = "${var.setup_name}"
     triggering_env = "${var.triggering_env}"
@@ -30,6 +31,7 @@ resource "aws_instance" "az2_client" {
 
   tags = {
     Environment    = "${var.environment}"
+    Project        = "${var.environment}"
     Name           = "${var.setup_name}-CLIENT-us_east_2b-${count.index + 1}"
     setup          = "${var.setup_name}"
     triggering_env = "${var.triggering_env}"
