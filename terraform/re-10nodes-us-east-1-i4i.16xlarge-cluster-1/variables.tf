@@ -4,8 +4,10 @@
 
 variable "setup_name" {
   description = "setup name"
-  default     = "10nodes-us-east-2-i4i.8xlarge-cluster-2"
+  default     = "perf-cto-RE-10nodes-us-east-1-i4i.16xlarge-cluster-1"
 }
+
+
 variable "github_actor" {
   description = "The name of the person or app that initiated the deployment."
   default     = "N/A"
@@ -43,28 +45,29 @@ variable "timeout_secs" {
 
 
 
+
 ################################################################################
 # Access keys
 ################################################################################
 variable "private_key" {
   description = "private key"
-  default     = "/tmp/benchmarks.redislabs.pem"
+  default     = "~/redislabs/pems/benchmarksredislabsus-east-1.pem"
 }
 
 variable "key_name" {
   description = "key name"
-  default     = "perf-cto-us-east-2"
+  default     = "benchmarks.redislabs.us-east-1"
 }
 
 variable "region" {
-  default = "us-east-2"
+  default = "us-east-1"
 }
 
 # (Ubuntu 18.04)
 # ubuntu-bionic-18.04-amd64-server-20230531
 variable "instance_ami" {
-  description = "AMI for aws EC2 instance - us-east-2 Ubuntu 18.04"
-  default     = "ami-0bb220fc4bffd88dd"
+  description = "AMI for aws EC2 instance - us-east-1 Ubuntu 18.04"
+  default     = "ami-055744c75048d8296"
 }
 
 variable "instance_device_name" {
@@ -133,7 +136,7 @@ variable "ssh_user" {
 ################################################################################
 variable "server_instance_type" {
   description = "type for aws EC2 instance"
-  default     = "i4i.8xlarge"
+  default     = "i4i.16xlarge"
 }
 
 
@@ -143,8 +146,7 @@ variable "server_instance_count" {
 
 variable "server_instance_cpu_core_count" {
   description = "CPU core count for aws EC2 instance"
-  default     = 16
+  default     = 32
 }
-
 
 

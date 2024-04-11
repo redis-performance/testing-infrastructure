@@ -4,8 +4,9 @@
 
 variable "setup_name" {
   description = "setup name"
-  default     = "10nodes-us-east-2-i4i.8xlarge-cluster-2"
+  default     = "perf-cto-RE-10nodes-us-east-2-i4i.16xlarge-cluster-1"
 }
+
 variable "github_actor" {
   description = "The name of the person or app that initiated the deployment."
   default     = "N/A"
@@ -133,7 +134,7 @@ variable "ssh_user" {
 ################################################################################
 variable "server_instance_type" {
   description = "type for aws EC2 instance"
-  default     = "i4i.8xlarge"
+  default     = "i4i.16xlarge"
 }
 
 
@@ -143,7 +144,7 @@ variable "server_instance_count" {
 
 variable "server_instance_cpu_core_count" {
   description = "CPU core count for aws EC2 instance"
-  default     = 16
+  default     = 32
 }
 
 

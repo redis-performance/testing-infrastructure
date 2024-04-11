@@ -4,8 +4,9 @@
 
 variable "setup_name" {
   description = "setup name"
-  default     = "10nodes-us-east-2-i4i.8xlarge-cluster-2"
+  default     = "bench-client6-r6i.2xlarge"
 }
+
 variable "github_actor" {
   description = "The name of the person or app that initiated the deployment."
   default     = "N/A"
@@ -23,7 +24,7 @@ variable "triggering_env" {
 
 variable "environment" {
   description = "	The cost tag."
-  default     = "Stratos"
+  default     = "VecSim-Competitive"
 }
 
 variable "github_org" {
@@ -60,12 +61,13 @@ variable "region" {
   default = "us-east-2"
 }
 
-# (Ubuntu 18.04)
-# ubuntu-bionic-18.04-amd64-server-20230531
+# (Ubuntu 22.04)
+# ubuntu-bionic-22.04-amd64-server
 variable "instance_ami" {
-  description = "AMI for aws EC2 instance - us-east-2 Ubuntu 18.04"
-  default     = "ami-0bb220fc4bffd88dd"
+  description = "AMI for aws EC2 instance - us-east-2 Ubuntu 22.04 LTS 20240207.1"
+  default     = "ami-0f5daaa3a7fb3378b"
 }
+
 
 variable "instance_device_name" {
   description = "EC2 instance device name"
@@ -79,7 +81,7 @@ variable "redis_module" {
 
 variable "instance_volume_size" {
   description = "EC2 instance volume_size"
-  default     = "1024"
+  default     = "256"
 }
 
 variable "instance_volume_type" {
@@ -92,6 +94,17 @@ variable "instance_volume_iops" {
   description = "EC2 instance volume_iops"
   default     = "3000"
 }
+
+variable "client_instance_volume_size" {
+  description = "EC2 instance volume_size"
+  default     = "256"
+}
+
+variable "client_instance_volume_type" {
+  description = "EC2 instance volume_type"
+  default     = "gp3"
+}
+
 
 variable "instance_volume_encrypted" {
   description = "EC2 instance instance_volume_encrypted"
@@ -133,18 +146,15 @@ variable "ssh_user" {
 ################################################################################
 variable "server_instance_type" {
   description = "type for aws EC2 instance"
-  default     = "i4i.8xlarge"
+  default     = "r6i.2xlarge"
 }
 
-
 variable "server_instance_count" {
-  default = "10"
+  description = "count of aws EC2 instances"
+  default     = 1
 }
 
 variable "server_instance_cpu_core_count" {
   description = "CPU core count for aws EC2 instance"
-  default     = 16
+  default     = 4
 }
-
-
-
