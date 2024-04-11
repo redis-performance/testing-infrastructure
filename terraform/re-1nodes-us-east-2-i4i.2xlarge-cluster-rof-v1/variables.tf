@@ -4,7 +4,7 @@
 
 variable "setup_name" {
   description = "setup name"
-  default     = "10nodes-us-east-2-i4i.8xlarge-cluster-2"
+  default     = "perf-cto-RE-1nodes-us-east-2-i4i.2xlarge-cluster-rof-v1"
 }
 variable "github_actor" {
   description = "The name of the person or app that initiated the deployment."
@@ -23,7 +23,7 @@ variable "triggering_env" {
 
 variable "environment" {
   description = "	The cost tag."
-  default     = "Stratos"
+  default     = "Auto-Tiering"
 }
 
 variable "github_org" {
@@ -60,11 +60,10 @@ variable "region" {
   default = "us-east-2"
 }
 
-# (Ubuntu 18.04)
-# ubuntu-bionic-18.04-amd64-server-20230531
+# us-east-2	Focal Fossa	20.04 LTS	amd64	hvm:ebs-ssd	20240223
 variable "instance_ami" {
-  description = "AMI for aws EC2 instance - us-east-2 Ubuntu 18.04"
-  default     = "ami-0bb220fc4bffd88dd"
+  description = "AMI for aws EC2 instance - us-east-2 Ubuntu 20.04"
+  default     = "ami-0537c55099cdc51b4"
 }
 
 variable "instance_device_name" {
@@ -120,7 +119,7 @@ variable "instance_network_interface_plus_count" {
 
 variable "os" {
   description = "os"
-  default     = "ubuntu18.04"
+  default     = "ubuntu20.04"
 }
 
 variable "ssh_user" {
@@ -133,17 +132,17 @@ variable "ssh_user" {
 ################################################################################
 variable "server_instance_type" {
   description = "type for aws EC2 instance"
-  default     = "i4i.8xlarge"
+  default     = "i4i.2xlarge"
 }
 
 
 variable "server_instance_count" {
-  default = "10"
+  default = "1"
 }
 
 variable "server_instance_cpu_core_count" {
   description = "CPU core count for aws EC2 instance"
-  default     = 16
+  default     = 4
 }
 
 

@@ -4,8 +4,9 @@
 
 variable "setup_name" {
   description = "setup name"
-  default     = "10nodes-us-east-2-i4i.8xlarge-cluster-2"
+  default     = "perf-cto-RE-2nodes-auto-tiering-35dbs-35gb-7.4.0-m6id.xlarge"
 }
+
 variable "github_actor" {
   description = "The name of the person or app that initiated the deployment."
   default     = "N/A"
@@ -23,7 +24,7 @@ variable "triggering_env" {
 
 variable "environment" {
   description = "	The cost tag."
-  default     = "Stratos"
+  default     = "Auto-Tiering"
 }
 
 variable "github_org" {
@@ -60,11 +61,11 @@ variable "region" {
   default = "us-east-2"
 }
 
-# (Ubuntu 18.04)
-# ubuntu-bionic-18.04-amd64-server-20230531
+# (Ubuntu 20.04)
+# ubuntu-bionic-20.04-amd64-server-20231025
 variable "instance_ami" {
-  description = "AMI for aws EC2 instance - us-east-2 Ubuntu 18.04"
-  default     = "ami-0bb220fc4bffd88dd"
+  description = "AMI for aws EC2 instance - us-east-2 Ubuntu 20.04"
+  default     = "ami-07b36ea9852e986ad"
 }
 
 variable "instance_device_name" {
@@ -93,6 +94,17 @@ variable "instance_volume_iops" {
   default     = "3000"
 }
 
+variable "client_instance_volume_size" {
+  description = "EC2 instance volume_size"
+  default     = "256"
+}
+
+variable "client_instance_volume_type" {
+  description = "EC2 instance volume_type"
+  default     = "gp3"
+}
+
+
 variable "instance_volume_encrypted" {
   description = "EC2 instance instance_volume_encrypted"
   default     = "false"
@@ -120,7 +132,7 @@ variable "instance_network_interface_plus_count" {
 
 variable "os" {
   description = "os"
-  default     = "ubuntu18.04"
+  default     = "ubuntu20.04"
 }
 
 variable "ssh_user" {
@@ -131,20 +143,18 @@ variable "ssh_user" {
 ################################################################################
 # Specific DB machine variables
 ################################################################################
+# m6id.xlarge 	4 VCPUs	16 GB memory 	1x237 NVMe SSD
 variable "server_instance_type" {
   description = "type for aws EC2 instance"
-  default     = "i4i.8xlarge"
+  default     = "m6id.xlarge"
 }
 
 
 variable "server_instance_count" {
-  default = "10"
+  default = "2"
 }
 
 variable "server_instance_cpu_core_count" {
   description = "CPU core count for aws EC2 instance"
-  default     = 16
+  default     = 2
 }
-
-
-

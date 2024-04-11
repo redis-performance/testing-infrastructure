@@ -4,7 +4,7 @@
 
 variable "setup_name" {
   description = "setup name"
-  default     = "10nodes-us-east-2-i4i.8xlarge-cluster-2"
+  default     = "oss-standalone-us-east-2-amd64-ubuntu20.04-m6i.8xlarge"
 }
 variable "github_actor" {
   description = "The name of the person or app that initiated the deployment."
@@ -23,7 +23,7 @@ variable "triggering_env" {
 
 variable "environment" {
   description = "	The cost tag."
-  default     = "Stratos"
+  default     = "Flexible-Sharding"
 }
 
 variable "github_org" {
@@ -60,16 +60,28 @@ variable "region" {
   default = "us-east-2"
 }
 
-# (Ubuntu 18.04)
-# ubuntu-bionic-18.04-amd64-server-20230531
+# (Ubuntu 20.04)
+# ubuntu-bionic-20.04-amd64-server
+# 20240321	ami-084259a90ab18495c
 variable "instance_ami" {
-  description = "AMI for aws EC2 instance - us-east-2 Ubuntu 18.04"
-  default     = "ami-0bb220fc4bffd88dd"
+  description = "AMI for aws EC2 instance - us-east-2 Ubuntu 20.04"
+  default     = "ami-084259a90ab18495c"
 }
 
 variable "instance_device_name" {
   description = "EC2 instance device name"
   default     = "/dev/sda1"
+}
+
+
+variable "instance_volume_type" {
+  description = "EC2 instance volume_type"
+  default     = "gp3"
+}
+
+variable "instance_volume_iops" {
+  description = "EC2 instance volume_iops"
+  default     = "100"
 }
 
 variable "redis_module" {
@@ -79,19 +91,20 @@ variable "redis_module" {
 
 variable "instance_volume_size" {
   description = "EC2 instance volume_size"
-  default     = "1024"
+  default     = "256"
 }
 
-variable "instance_volume_type" {
+
+variable "client_instance_volume_size" {
+  description = "EC2 instance volume_size"
+  default     = "256"
+}
+
+variable "client_instance_volume_type" {
   description = "EC2 instance volume_type"
   default     = "gp3"
 }
 
-
-variable "instance_volume_iops" {
-  description = "EC2 instance volume_iops"
-  default     = "3000"
-}
 
 variable "instance_volume_encrypted" {
   description = "EC2 instance instance_volume_encrypted"
@@ -120,7 +133,7 @@ variable "instance_network_interface_plus_count" {
 
 variable "os" {
   description = "os"
-  default     = "ubuntu18.04"
+  default     = "ubuntu20.04"
 }
 
 variable "ssh_user" {
@@ -131,14 +144,15 @@ variable "ssh_user" {
 ################################################################################
 # Specific DB machine variables
 ################################################################################
+# m6i.8xlarge 	32 VCPUs 	128 GB MEM
 variable "server_instance_type" {
   description = "type for aws EC2 instance"
-  default     = "i4i.8xlarge"
+  default     = "m6i.8xlarge"
 }
 
 
 variable "server_instance_count" {
-  default = "10"
+  default = "1"
 }
 
 variable "server_instance_cpu_core_count" {
@@ -147,4 +161,17 @@ variable "server_instance_cpu_core_count" {
 }
 
 
+################################################################################
+# Specific Client machine variables
+################################################################################
+# m6i.8xlarge 	32 VCPUs 	128 GB MEM
+
+variable "client_instance_type" {
+  description = "type for aws EC2 instance"
+  default     = "m6i.8xlarge"
+}
+
+variable "client_instance_count" {
+  default = "1"
+}
 

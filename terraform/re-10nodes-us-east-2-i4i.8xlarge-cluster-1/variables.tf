@@ -24,7 +24,7 @@ variable "triggering_env" {
 
 variable "environment" {
   description = "	The cost tag."
-  default     = "N/A"
+  default     = "Stratos"
 }
 
 variable "github_org" {
