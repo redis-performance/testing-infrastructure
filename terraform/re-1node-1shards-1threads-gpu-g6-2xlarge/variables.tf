@@ -9,7 +9,7 @@ variable "search_thread" {
 
 variable "setup_name" {
   description = "setup name"
-  default     = "perf-cto-RE-g6.2xlarge-1shards-gpu"
+  default     = "perf-cto-RE-g6.2xlarge-1shards-1threads-gpu"
 }
 
 variable "github_actor" {
@@ -70,8 +70,10 @@ variable "region" {
 # us-east-2	Focal Fossa	20.04 Deep Learning AMI GPU CUDA 11.4.3 (Ubuntu 20.04) 20221115
 variable "instance_ami" {
   description = "AMI for aws EC2 instance - us-east-2 Ubuntu 20.04 - amd64"
-  default     = "ami-069309de05f87770a"
+  default     = "ami-01cc20b11fcde36cb"
 }
+
+
 
 variable "client_instance_ami" {
   description = "AMI for aws EC2 instance - us-east-2 Ubuntu 22.04 - amd64"
