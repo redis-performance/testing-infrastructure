@@ -64,8 +64,8 @@ variable "region" {
 # (Ubuntu 22.04)
 # ubuntu-bionic-22.04-amd64-server
 variable "instance_ami" {
-  description = "AMI for aws EC2 instance - us-east-2 Ubuntu 22.04 LTS 20240207.1"
-  default     = "ami-0f5daaa3a7fb3378b"
+  description = "AMI for aws EC2 instance - us-east-2 Ubuntu 22.04 LTS 20240501"
+  default     = "ami-0b986fc833876b42e"
 }
 
 
@@ -133,7 +133,7 @@ variable "instance_network_interface_plus_count" {
 
 variable "os" {
   description = "os"
-  default     = "ubuntu18.04"
+  default     = "ubuntu22.04"
 }
 
 variable "ssh_user" {
