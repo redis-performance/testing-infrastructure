@@ -55,7 +55,25 @@ resource "aws_instance" "server_2a" {
     }
   }
 
+
   ################################################################################
   # Deployment related
   ################################################################################
+
+  ################################################################################
+  # Install memtier
+  ################################################################################
+  provisioner "remote-exec" {
+    script = "./../scripts/install_memtier.sh"
+    connection {
+      host        = self.public_ip # The `self` variable is like `this` in many programming languages
+      type        = "ssh"          # in this case, `self` is the resource (the server).
+      user        = var.ssh_user
+      private_key = file(var.private_key)
+      #need to increase timeout to larger then 5m for metal instances
+      timeout = "5m"
+      agent   = "false"
+    }
+  }
+
 }
