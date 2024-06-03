@@ -13,3 +13,11 @@ output "server_instance_type" {
 output "search_threads" {
   value = var.search_thread
 }
+
+output "setup_name" {
+  value = var.setup_name
+}
+
+output "server_instance_count" {
+  value = var.server_instance_count
+}

@@ -14,10 +14,6 @@ print("SEARCH_THREADS={}\n".format(search_threads))
 
 print("CLUSTER_NAME=\"{}_{}_threads\"\n".format(output_json['server_instance_type']['value'].replace(".","_"),search_threads))
 
-print("\n#client external IP addresses")
-if 'client_public_ip' in output_json:
-    print("CLIENT_E={}\n".format(output_json['client_public_ip']['value']))
-
 print("\n#internal IP addresses")
 cleaned_json = {}
 for keyn, v in enumerate(output_json['server_private_ip']['value'],start=1):

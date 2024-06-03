@@ -4,18 +4,19 @@
 
 variable "search_thread" {
   description = "setup name"
-  default     = "24"
+  default     = "6"
 }
 
 variable "setup_name" {
   description = "setup name"
-  default     = "perf-cto-RE-c6i.8xlarge-24threads"
+  default     = "weaviate-v1.25-m6i-2xlarge"
 }
 
 variable "github_actor" {
   description = "The name of the person or app that initiated the deployment."
   default     = "N/A"
 }
+
 
 variable "github_repo" {
   description = "	The owner and repository name. For example, testing-infrastructure."
@@ -29,7 +30,7 @@ variable "triggering_env" {
 
 variable "environment" {
   description = "	The cost tag."
-  default     = "N/A"
+  default     = "VecSim-Competitive"
 }
 
 variable "github_org" {
@@ -66,11 +67,10 @@ variable "region" {
   default = "us-east-2"
 }
 # (Ubuntu 20.04)
-# us-east-2	Focal Fossa	20.04 LTS	amd64	hvm:ebs-ssd	20240521	ami-07dc428cbdf17b8fe	hvm
-
+# us-east-2	Focal Fossa	20.04 LTS	amd64	hvm:ebs-ssd	20240205	ami-07b469810a61205a8	hvm
 variable "instance_ami" {
   description = "AMI for aws EC2 instance - us-east-2 Ubuntu 20.04 - amd64"
-  default     = "ami-07dc428cbdf17b8fe"
+  default     = "ami-07b469810a61205a8"
 }
 
 variable "instance_device_name" {
@@ -137,7 +137,7 @@ variable "instance_network_interface_plus_count" {
 
 variable "os" {
   description = "os"
-  default     = "ubuntu18.04"
+  default     = "ubuntu20.04"
 }
 
 variable "ssh_user" {
@@ -150,7 +150,7 @@ variable "ssh_user" {
 ################################################################################
 variable "server_instance_type" {
   description = "type for aws EC2 instance"
-  default     = "c6i.8xlarge"
+  default     = "m6i.2xlarge"
 }
 
 variable "server_instance_count" {
@@ -160,15 +160,5 @@ variable "server_instance_count" {
 
 variable "server_instance_cpu_core_count" {
   description = "CPU core count for aws EC2 instance"
-  default     = 16
-}
-
-variable "client_instance_type" {
-  description = "type for aws EC2 instance"
-  default     = "r6i.8xlarge"
-}
-
-variable "client_instance_count" {
-  description = "count of aws EC2 instances"
-  default     = 1
+  default     = 4
 }
