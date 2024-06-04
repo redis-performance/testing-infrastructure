@@ -13,3 +13,7 @@ output "server_instance_type" {
 output "search_threads" {
   value = var.search_thread
 }
+
+output "pem" {
+  value = var.private_key
+}
