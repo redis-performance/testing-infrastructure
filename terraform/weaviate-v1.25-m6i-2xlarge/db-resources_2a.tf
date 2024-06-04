@@ -1,13 +1,12 @@
 
-resource "aws_instance" "client" {
-  count                       = var.client_instance_count
-  ami                         = var.client_instance_ami
-  instance_type               = var.client_instance_type
-  subnet_id                   = data.terraform_remote_state.shared_resources.outputs.subnet_public_id
-  vpc_security_group_ids      = ["${data.terraform_remote_state.shared_resources.outputs.performance_cto_sg_id}"]
-  key_name                    = var.key_name
-  associate_public_ip_address = "true"
-  availability_zone           = "us-east-2a"
+resource "aws_instance" "server_2a" {
+  count                  = var.server_instance_count
+  ami                    = var.instance_ami
+  instance_type          = var.server_instance_type
+  subnet_id              = data.terraform_remote_state.shared_resources.outputs.subnet_public_id
+  vpc_security_group_ids = ["${data.terraform_remote_state.shared_resources.outputs.performance_cto_sg_id}"]
+  key_name               = var.key_name
+  availability_zone      = "us-east-2a"
 
   root_block_device {
     volume_size           = var.instance_volume_size
@@ -19,27 +18,25 @@ resource "aws_instance" "client" {
   volume_tags = {
     Environment    = "${var.environment}"
     Project        = "${var.environment}"
-    Name           = "ebs_block_device-${var.setup_name}-CLIENT-${count.index + 1}"
+    Name           = "ebs_block_device-${var.setup_name}-DB-us-east-2a-${count.index + 1}"
     setup          = "${var.setup_name}"
     triggering_env = "${var.triggering_env}"
     github_actor   = "${var.github_actor}"
     github_org     = "${var.github_org}"
     github_repo    = "${var.github_repo}"
     github_sha     = "${var.github_sha}"
-    timeout_secs   = "${var.timeout_secs}"
   }
 
   tags = {
     Environment    = "${var.environment}"
     Project        = "${var.environment}"
-    Name           = "search-threads-${var.search_thread}-client"
+    Name           = "${var.setup_name}-DB-us-east-2a-${count.index + 1}"
     setup          = "${var.setup_name}"
     triggering_env = "${var.triggering_env}"
     github_actor   = "${var.github_actor}"
     github_org     = "${var.github_org}"
     github_repo    = "${var.github_repo}"
     github_sha     = "${var.github_sha}"
-    timeout_secs   = "${var.timeout_secs}"
   }
 
   ################################################################################
@@ -53,7 +50,7 @@ resource "aws_instance" "client" {
       user        = var.ssh_user
       private_key = file(var.private_key)
       #need to increase timeout to larger then 5m for metal instances
-      timeout = "15m"
+      timeout = "5m"
       agent   = "false"
     }
   }

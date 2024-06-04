@@ -14,6 +14,10 @@ output "search_threads" {
   value = var.search_thread
 }
 
-output "pem" {
-  value = var.private_key
+output "setup_name" {
+  value = var.setup_name
+}
+
+output "server_instance_count" {
+  value = var.server_instance_count
 }
