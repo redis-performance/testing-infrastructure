@@ -19,33 +19,6 @@ resource "aws_spot_instance_request" "server" {
     delete_on_termination = true
   }
 
-  volume_tags = {
-    Environment    = "${var.environment}"
-    Project        = "${var.environment}"
-    Name           = "ebs_block_device-${var.setup_name}-DB-${count.index + 1}"
-    setup          = "${var.setup_name}"
-    triggering_env = "${var.triggering_env}"
-    github_actor   = "${var.github_actor}"
-    github_org     = "${var.github_org}"
-    github_repo    = "${var.github_repo}"
-    github_sha     = "${var.github_sha}"
-    timeout_secs   = "${var.timeout_secs}"
-  }
-
-  
-  tags = {
-    Environment    = "${var.environment}"
-    Project        = "${var.environment}"
-    Name           = "${var.setup_name}-DB-${count.index + 1}"
-    setup          = "${var.setup_name}"
-    triggering_env = "${var.triggering_env}"
-    github_actor   = "${var.github_actor}"
-    github_org     = "${var.github_org}"
-    github_repo    = "${var.github_repo}"
-    github_sha     = "${var.github_sha}"
-    timeout_secs   = "${var.timeout_secs}"
-  }
-
 
   ################################################################################
   # This will ensure we wait here until the instance is ready to receive the ssh connection 
