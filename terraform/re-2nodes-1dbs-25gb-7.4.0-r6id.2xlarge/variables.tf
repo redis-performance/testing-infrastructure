@@ -4,8 +4,9 @@
 
 variable "setup_name" {
   description = "setup name"
-  default     = "oss-redisearch-m5"
+  default     = "perf-cto-RE-re-2nodes-1dbs-25gb-7.4.0-r6i.2xlarge"
 }
+
 variable "github_actor" {
   description = "The name of the person or app that initiated the deployment."
   default     = "N/A"
@@ -23,7 +24,7 @@ variable "triggering_env" {
 
 variable "environment" {
   description = "	The cost tag."
-  default     = "RediSearch"
+  default     = "N/A"
 }
 
 variable "github_org" {
@@ -53,7 +54,7 @@ variable "private_key" {
 
 variable "key_name" {
   description = "key name"
-  default     = "perf-ci"
+  default     = "perf-cto-us-east-2"
 }
 
 variable "region" {
@@ -61,27 +62,14 @@ variable "region" {
 }
 
 # (Ubuntu 20.04)
-# ubuntu-bionic-20.04-amd64-server with redis 7.4.0 and memtier 2.1.1
-# https://us-east-2.console.aws.amazon.com/ec2/home?region=us-east-2#ImageDetails:imageId=ami-0cfbc88a79665b192
 variable "instance_ami" {
-  description = "AMI for aws EC2 instance - us-east-2 Ubuntu 20.04 - perf-cto-base-image-ubuntu20.04-redis-7.4.0-tuned-latency"
-  default     = "ami-0cfbc88a79665b192"
+  description = "AMI for aws EC2 instance - us-east-2 Ubuntu 20.04"
+  default     = "ami-0119b1e7fe7303882"
 }
 
 variable "instance_device_name" {
   description = "EC2 instance device name"
   default     = "/dev/sda1"
-}
-
-
-variable "instance_volume_type" {
-  description = "EC2 instance volume_type"
-  default     = "gp3"
-}
-
-variable "instance_volume_iops" {
-  description = "EC2 instance volume_iops"
-  default     = "100"
 }
 
 variable "redis_module" {
@@ -94,6 +82,16 @@ variable "instance_volume_size" {
   default     = "1024"
 }
 
+variable "instance_volume_type" {
+  description = "EC2 instance volume_type"
+  default     = "gp3"
+}
+
+
+variable "instance_volume_iops" {
+  description = "EC2 instance volume_iops"
+  default     = "3000"
+}
 
 variable "client_instance_volume_size" {
   description = "EC2 instance volume_size"
@@ -144,37 +142,18 @@ variable "ssh_user" {
 ################################################################################
 # Specific DB machine variables
 ################################################################################
-# m5.8xlarge 	32 VCPUs 	128 GB MEM
+# r6id.2xlarge 	8 VCPUs ; 64 GB Memory	; 1x474 NVMe SSD
 variable "server_instance_type" {
   description = "type for aws EC2 instance"
-  default     = "m5.8xlarge"
+  default     = "r6i.2xlarge"
 }
 
 
 variable "server_instance_count" {
-  default = "1"
+  default = "2"
 }
 
 variable "server_instance_cpu_core_count" {
   description = "CPU core count for aws EC2 instance"
-  default     = 16
-}
-
-variable "server_instance_cpu_threads_per_core" {
-  description = "CPU threads per CORE"
-  default     = 1
-}
-
-################################################################################
-# Specific Client machine variables
-################################################################################
-# c5.4xlarge 	16 VCPUs 
-
-variable "client_instance_type" {
-  description = "type for aws EC2 instance"
-  default     = "c5.4xlarge"
-}
-
-variable "client_instance_count" {
-  default = "1"
+  default     = 4
 }
