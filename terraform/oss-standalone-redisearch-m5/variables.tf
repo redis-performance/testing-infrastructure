@@ -61,10 +61,11 @@ variable "region" {
 }
 
 # (Ubuntu 20.04)
-# ubuntu-bionic-20.04-amd64-server
+# ubuntu-bionic-20.04-amd64-server with redis 7.4.0 and memtier 2.1.1
+# https://us-east-2.console.aws.amazon.com/ec2/home?region=us-east-2#ImageDetails:imageId=ami-0cfbc88a79665b192
 variable "instance_ami" {
-  description = "AMI for aws EC2 instance - us-east-2 Ubuntu 20.04 - perf-cto-base-image-ubuntu20.04-redis-7.1.241-tuned-latency"
-  default     = "ami-0e64e0b751414b32e"
+  description = "AMI for aws EC2 instance - us-east-2 Ubuntu 20.04 - perf-cto-base-image-ubuntu20.04-redis-7.4.0-tuned-latency"
+  default     = "ami-0cfbc88a79665b192"
 }
 
 variable "instance_device_name" {
