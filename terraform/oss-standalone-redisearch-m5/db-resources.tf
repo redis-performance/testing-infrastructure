@@ -51,18 +51,10 @@ resource "aws_instance" "server" {
   ################################################################################
   # This will ensure we wait here until the instance is ready to receive the ssh connection 
   ################################################################################
-  provisioner "remote-exec" {
-    script = "./../scripts/wait_for_instance.sh"
-    connection {
-      host        = self.public_ip # The `self` variable is like `this` in many programming languages
-      type        = "ssh"          # in this case, `self` is the resource (the server).
-      user        = var.ssh_user
-      private_key = file(var.private_key)
-      #need to increase timeout to larger then 5m for metal instances
-      timeout = "15m"
-      agent   = "false"
-    }
-  }
+  user_data = <<-EOF
+    #!/bin/bash
+    echo "Instance is ready" > /var/log/instance_ready.log
+  EOF
 
   ################################################################################
   # Deployment related
