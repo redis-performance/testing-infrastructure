@@ -53,19 +53,26 @@ variable "private_key" {
 
 variable "key_name" {
   description = "key name"
-  default     = "perf-ci"
+  default     = "perf-cto-us-east-2"
 }
 
 variable "region" {
   default = "us-east-2"
 }
 
-# (Ubuntu 20.04)
-# ubuntu-bionic-20.04-amd64-server with redis 7.4.0 and memtier 2.1.1
-# https://us-east-2.console.aws.amazon.com/ec2/home?region=us-east-2#ImageDetails:imageId=ami-0cfbc88a79665b192
+# (Ubuntu 22.04, memtier 2.1.4 and redis unstable from March 6th 2025)
+# ubuntu@ip-10-3-0-162:~$ memtier_benchmark --version
+# memtier_benchmark 2.1.4
+# Copyright (C) 2011-2024 Redis Ltd.
+# This is free software.  You may redistribute copies of it under the terms of
+# the GNU General Public License <http://www.gnu.org/licenses/gpl.html>.
+# There is NO WARRANTY, to the extent permitted by law.
+# ubuntu@ip-10-3-0-162:~$ redis-server --version
+# Redis server v=255.255.255 sha=f364dcca:0 malloc=jemalloc-5.3.0 bits=64 build=502a999850b32fd8
+# https://us-east-2.console.aws.amazon.com/ec2/home?region=us-east-2#ImageDetails:imageId=ami-0cda50c2e20879afb
 variable "instance_ami" {
-  description = "AMI for aws EC2 instance - us-east-2 Ubuntu 20.04 - perf-cto-base-image-ubuntu20.04-redis-7.4.0-tuned-latency"
-  default     = "ami-0cfbc88a79665b192"
+  description = "AMI for aws EC2 instance - us-east-2 Ubuntu 22.04 - perf-base-image-ubuntu22.04-m6i.8xlarge-20250306-0220"
+  default     = "ami-0cda50c2e20879afb"
 }
 
 variable "instance_device_name" {
