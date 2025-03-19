@@ -60,19 +60,10 @@ variable "region" {
   default = "us-east-2"
 }
 
-# (Ubuntu 22.04, memtier 2.1.4 and redis unstable from March 6th 2025)
-# ubuntu@ip-10-3-0-162:~$ memtier_benchmark --version
-# memtier_benchmark 2.1.4
-# Copyright (C) 2011-2024 Redis Ltd.
-# This is free software.  You may redistribute copies of it under the terms of
-# the GNU General Public License <http://www.gnu.org/licenses/gpl.html>.
-# There is NO WARRANTY, to the extent permitted by law.
-# ubuntu@ip-10-3-0-162:~$ redis-server --version
-# Redis server v=255.255.255 sha=f364dcca:0 malloc=jemalloc-5.3.0 bits=64 build=502a999850b32fd8
-# https://us-east-2.console.aws.amazon.com/ec2/home?region=us-east-2#ImageDetails:imageId=ami-095460f0c4bc57b6e
+# (Ubuntu 24.04, memtier 2.1.4 and redis unstable from March 19th 2025)
 variable "instance_ami" {
-  description = "AMI for aws EC2 instance - us-east-2 Ubuntu 22.04 - perf-base-image-ubuntu22.04-aarch64-m7g.8xlarge-20250314-1233"
-  default     = "ami-095460f0c4bc57b6e"
+  description = "AMI for aws EC2 instance - us-east-2 Ubuntu 24.04 - perf-base-image-ubuntu24.04-aarch64-m7g.8xlarge-20250319-1137"
+  default     = "ami-085a6d2c9ae2c0142"
 }
 
 variable "instance_device_name" {
