@@ -31,7 +31,7 @@ resource "aws_spot_instance_request" "server" {
       user        = var.ssh_user
       private_key = file(var.private_key)
       #need to increase timeout to larger then 5m for metal instances
-      timeout = "15m"
+      timeout = "8m"
       agent   = "false"
     }
   }
