@@ -58,7 +58,7 @@ variable "public_key" {
 
 variable "key_name" {
   description = "key name"
-  default     = "perf-ci"
+  default     = "perf-cto-us-east-2"
 }
 
 variable "region" {
