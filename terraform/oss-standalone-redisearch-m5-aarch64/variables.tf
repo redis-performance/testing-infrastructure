@@ -4,7 +4,7 @@
 
 variable "setup_name" {
   description = "setup name"
-  default     = "oss-redisearch-m5"
+  default     = "oss-redisearch-m7g-aarch64"
 }
 variable "github_actor" {
   description = "The name of the person or app that initiated the deployment."
@@ -60,21 +60,11 @@ variable "region" {
   default = "us-east-2"
 }
 
-# (Ubuntu 22.04, memtier 2.1.4 and redis unstable from March 6th 2025)
-# ubuntu@ip-10-3-0-162:~$ memtier_benchmark --version
-# memtier_benchmark 2.1.4
-# Copyright (C) 2011-2024 Redis Ltd.
-# This is free software.  You may redistribute copies of it under the terms of
-# the GNU General Public License <http://www.gnu.org/licenses/gpl.html>.
-# There is NO WARRANTY, to the extent permitted by law.
-# ubuntu@ip-10-3-0-162:~$ redis-server --version
-# Redis server v=255.255.255 sha=f364dcca:0 malloc=jemalloc-5.3.0 bits=64 build=502a999850b32fd8
-# https://us-east-2.console.aws.amazon.com/ec2/home?region=us-east-2#ImageDetails:imageId=ami-0cda50c2e20879afb
+# (Ubuntu 24.04, memtier 2.1.4 and redis unstable from March 19th 2025)
 variable "instance_ami" {
-  description = "AMI for aws EC2 instance - us-east-2 Ubuntu 22.04 - perf-base-image-ubuntu22.04-m6i.8xlarge-20250306-0220"
-  default     = "ami-0cda50c2e20879afb"
+  description = "AMI for aws EC2 instance - us-east-2 Ubuntu 24.04 - perf-base-image-ubuntu24.04-aarch64-m7g.8xlarge-20250319-1137"
+  default     = "ami-085a6d2c9ae2c0142"
 }
-
 
 variable "instance_device_name" {
   description = "EC2 instance device name"
@@ -99,7 +89,7 @@ variable "redis_module" {
 
 variable "instance_volume_size" {
   description = "EC2 instance volume_size"
-  default     = "1024"
+  default     = "512"
 }
 
 
@@ -141,7 +131,7 @@ variable "instance_network_interface_plus_count" {
 
 variable "os" {
   description = "os"
-  default     = "ubuntu20.04"
+  default     = "ubuntu22.04"
 }
 
 variable "ssh_user" {
@@ -155,7 +145,7 @@ variable "ssh_user" {
 # m5.8xlarge 	32 VCPUs 	128 GB MEM
 variable "server_instance_type" {
   description = "type for aws EC2 instance"
-  default     = "m5.8xlarge"
+  default     = "m7g.8xlarge"
 }
 
 
@@ -180,7 +170,7 @@ variable "server_instance_cpu_threads_per_core" {
 
 variable "client_instance_type" {
   description = "type for aws EC2 instance"
-  default     = "c5.9xlarge"
+  default     = "c7g.4xlarge"
 }
 
 variable "client_instance_count" {
