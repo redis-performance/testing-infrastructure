@@ -6,7 +6,8 @@ terraform {
   backend "s3" {
     bucket = "performance-cto-group"
     region = "us-east-1"
-    key = "ec-1-primaries-v8-m7g.xlarge-tls"
+    key = "benchmarks/infrastructure/perf-base-image-ubuntu24.04-m6i.8xlarge.tfstate"
+
   }
 }
 

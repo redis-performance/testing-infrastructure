@@ -6,7 +6,7 @@ terraform {
   backend "s3" {
     bucket = "performance-cto-group"
     region = "us-east-1"
-    key = "ec-1-primaries-v8-m7g.xlarge-tls"
+    key = "ec-1-primaries-v8-m7g.2xlarge-tls"
   }
 }
 

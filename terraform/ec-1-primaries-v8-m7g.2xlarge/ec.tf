@@ -1,9 +1,10 @@
+
 resource "aws_elasticache_replication_group" "ec" {
   automatic_failover_enabled  = false
   preferred_cache_cluster_azs = ["us-east-2a"]
-  replication_group_id        = "ec-1-primaries-v8-m7g-xlarge-tls"
+  replication_group_id        = "ec-1-primaries-v8-m7g-2xlarge"
   description                 = "xlarge cache"
-  node_type                   = "cache.m7g.xlarge"
+  node_type                   = "cache.m7g.2xlarge"
   num_cache_clusters          = 1
   parameter_group_name        = "default.valkey8"
   engine                      = "valkey"
@@ -12,7 +13,6 @@ resource "aws_elasticache_replication_group" "ec" {
   subnet_group_name           = "ec-subnet"
   at_rest_encryption_enabled  = false
   data_tiering_enabled        = false
-  transit_encryption_enabled  = true
 }
 
 
