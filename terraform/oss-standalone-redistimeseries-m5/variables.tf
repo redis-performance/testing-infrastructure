@@ -66,9 +66,10 @@ variable "region" {
 }
 
 # (Ubuntu 22.04)
+# https://us-east-2.console.aws.amazon.com/ec2/home?region=us-east-2#ImageDetails:imageId=ami-0cda50c2e20879afb
 variable "instance_ami" {
-  description = "AMI for aws EC2 instance - us-east-2 Ubuntu 20.04 - perf-base-image-ubuntu22.04-m6i.8xlarge-1"
-  default     = "ami-01207799cb12aebd3"
+  description = "AMI for aws EC2 instance - us-east-2 Ubuntu 22.04 - perf-base-image-ubuntu22.04-m6i.8xlarge-20250306-0220"
+  default     = "ami-0cda50c2e20879afb"
 }
 
 variable "instance_device_name" {
@@ -123,7 +124,7 @@ variable "instance_network_interface_plus_count" {
 
 variable "os" {
   description = "os"
-  default     = "ubuntu20.04"
+  default     = "ubuntu22.04"
 }
 
 variable "ssh_user" {
