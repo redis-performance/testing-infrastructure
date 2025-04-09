@@ -171,7 +171,7 @@ variable "server_instance_cpu_threads_per_core" {
 
 variable "client_instance_type" {
   description = "type for aws EC2 instance"
-  default     = "c6i.4xlarge"
+  default     = "m6i.4xlarge"
 }
 
 variable "client_instance_count" {
