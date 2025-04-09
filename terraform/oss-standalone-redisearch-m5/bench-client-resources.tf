@@ -46,10 +46,10 @@ resource "aws_instance" "client" {
   ################################################################################
   # This will ensure we wait here until the instance is ready to receive the ssh connection 
   ################################################################################
-  user_data = <<-EOF
-    #!/bin/bash
-    echo "Instance is ready" > /var/log/instance_ready.log
-  EOF
+  # user_data = <<-EOF
+  #   #!/bin/bash
+  #   echo "Instance is ready" > /var/log/instance_ready.log
+  # EOF
 
   ################################################################################
   # Deployment related

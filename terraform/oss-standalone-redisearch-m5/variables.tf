@@ -146,7 +146,7 @@ variable "ssh_user" {
 # m5.8xlarge 	32 VCPUs 	128 GB MEM
 variable "server_instance_type" {
   description = "type for aws EC2 instance"
-  default     = "m5.8xlarge"
+  default     = "m6i.8xlarge"
 }
 
 
@@ -171,7 +171,7 @@ variable "server_instance_cpu_threads_per_core" {
 
 variable "client_instance_type" {
   description = "type for aws EC2 instance"
-  default     = "c5.4xlarge"
+  default     = "c6i.4xlarge"
 }
 
 variable "client_instance_count" {
