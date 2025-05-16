@@ -1,0 +1,19 @@
+apiVersion: app.redislabs.com/v1alpha1
+kind: RedisEnterpriseDatabase
+metadata:
+  name: primary # name this whatever you wish
+spec:
+  memorySize: 200GiB
+  evictionPolicy: volatile-lru
+  modulesList:
+  - name: search
+  - name: bf
+  - name: ReJSON
+  - name: timeseries
+  redisEnterpriseCluster:
+    name: rec-large-scale-5nodes # Change this to whatever you named the REC
+  replication: true
+  shardCount: 10
+  persistence: aofEverySecond
+  tlsMode: enabled             # MUST be enabled for HAProxy
+  shardsPlacement: "sparse"
