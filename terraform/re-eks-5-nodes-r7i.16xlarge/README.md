@@ -293,6 +293,37 @@ This script:
 - Ensures the correct port is used for the Redis Enterprise Database
 - Creates an additional Ingress resource for the LoadBalancer hostname
 
+### diagnose-connection-timeout.sh
+
+Diagnoses connection timeout issues when connecting to Redis Enterprise Database.
+
+```bash
+./diagnose-connection-timeout.sh
+```
+
+This script:
+- Checks if the LoadBalancer hostname is resolvable
+- Tests if the port is reachable using telnet and netcat
+- Examines AWS security groups for potential issues
+- Verifies HAProxy Ingress configuration for TCP passthrough
+- Checks if the database is accessible from inside the cluster
+- Identifies network policies that might be blocking the connection
+
+### test-with-temp-pod.sh
+
+Tests connection to Redis Enterprise Database using a temporary pod.
+
+```bash
+./test-with-temp-pod.sh
+```
+
+This script:
+- Creates a temporary pod with redis-cli installed
+- Retrieves database connection information from Kubernetes secrets
+- Tests the connection from inside the Kubernetes cluster
+- Provides detailed diagnostics if the connection fails
+- Offers an interactive environment for further testing
+
 ## IP Address Optimization
 
 This configuration uses a reduced WARM_ENI_TARGET value of 10 (down from the default of 50) to prevent IP address exhaustion in the subnet. This is set in the cluster.tf file.
