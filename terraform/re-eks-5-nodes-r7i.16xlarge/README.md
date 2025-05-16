@@ -352,6 +352,40 @@ This script:
 - Provides detailed diagnostics if the connection fails
 - Offers guidance on how to use redis-cli to interact with the database
 
+### setup-redis-external-access.sh
+
+Sets up external access to Redis Enterprise Database on port 12000.
+
+```bash
+./setup-redis-external-access.sh
+```
+
+This script:
+- Creates an IngressClass resource for HAProxy
+- Creates a TCP Services ConfigMap for HAProxy
+- Updates the HAProxy Ingress Controller to use the TCP Services ConfigMap
+- Updates the HAProxy Service to expose the Redis port
+- Creates a dedicated TCP proxy for Redis using port 12000
+- Waits for the TCP proxy to start
+- Gets the LoadBalancer hostname for the TCP proxy
+- Gets the database password
+- Provides instructions for connecting to the Redis Enterprise Database
+
+### test-redis-port-12000.sh
+
+Tests connection to Redis Enterprise Database on port 12000.
+
+```bash
+./test-redis-port-12000.sh
+```
+
+This script:
+- Gets the LoadBalancer hostname for the TCP proxy
+- Gets the database password
+- Tests the connection to the Redis Enterprise Database on port 12000
+- Provides detailed diagnostics if the connection fails
+- Offers guidance on how to use redis-cli to interact with the database
+
 ## IP Address Optimization
 
 This configuration uses a reduced WARM_ENI_TARGET value of 10 (down from the default of 50) to prevent IP address exhaustion in the subnet. This is set in the cluster.tf file.
