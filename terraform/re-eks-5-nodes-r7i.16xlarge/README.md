@@ -417,6 +417,52 @@ This script:
 - Checks HAProxy status and configuration
 - Provides recommendations for optimizing Redis TCP proxy performance
 
+### get-proxy-info.sh
+
+Extracts proxy information from Redis Enterprise Cluster REST API.
+
+```bash
+./get-proxy-info.sh
+```
+
+This script:
+- Retrieves proxy information from the Redis Enterprise Cluster REST API
+- Displays detailed information for each proxy
+- Shows proxy policies
+- Lists databases with their endpoints
+- Provides a comprehensive view of the proxy configuration
+
+### extract-haproxy-config.sh
+
+Extracts and analyzes HAProxy configuration.
+
+```bash
+./extract-haproxy-config.sh
+```
+
+This script:
+- Retrieves database information from the Redis Enterprise Cluster REST API
+- Extracts HAProxy configuration from Kubernetes
+- Extracts Redis TCP proxy configuration from Kubernetes
+- Compares database ports with HAProxy configuration
+- Analyzes SSL configuration
+- Identifies potential misconfigurations
+
+### check-proxy-policies.sh
+
+Checks proxy policies in Redis Enterprise Cluster.
+
+```bash
+./check-proxy-policies.sh
+```
+
+This script:
+- Retrieves proxy policies from the Redis Enterprise Cluster REST API
+- Shows databases with their proxy policies
+- Analyzes if proxy policies are correctly configured
+- Checks SSL and TLS configuration
+- Identifies potential issues with proxy policies
+
 ## IP Address Optimization
 
 This configuration uses a reduced WARM_ENI_TARGET value of 10 (down from the default of 50) to prevent IP address exhaustion in the subnet. This is set in the cluster.tf file.
