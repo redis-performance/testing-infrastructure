@@ -32,8 +32,23 @@ fi
 
 echo "Using Redis Enterprise pod: $POD_NAME"
 
-# Construct the internal service name
-DB_HOST="redis-$DB_PORT.$NAMESPACE.svc.cluster.local"
+# Get the internal service name from the database status
+DB_HOST=$(kubectl get redb "$DB_NAME" -n "$NAMESPACE" -o jsonpath='{.status.internalEndpoints[0].host}')
+if [ -z "$DB_HOST" ]; then
+    echo "Warning: Could not get internal hostname from database status."
+    # Use the default format for Redis Enterprise Database internal service name
+    DB_HOST="redis-$DB_PORT.$NAMESPACE.svc.cluster.local"
+fi
+
+# For Redis Enterprise Cluster, the correct format is:
+# redis-<port>.<cluster-name>.<namespace>.svc.cluster.local
+CLUSTER_NAME=$(kubectl get redb "$DB_NAME" -n "$NAMESPACE" -o jsonpath='{.spec.redisEnterpriseCluster.name}')
+if [ -n "$CLUSTER_NAME" ]; then
+    CLUSTER_HOST="redis-$DB_PORT.$CLUSTER_NAME.$NAMESPACE.svc.cluster.local"
+    echo "Using cluster-specific hostname: $CLUSTER_HOST"
+    DB_HOST="$CLUSTER_HOST"
+fi
+
 echo "Using internal hostname: $DB_HOST"
 
 # Get the Redis Enterprise password
