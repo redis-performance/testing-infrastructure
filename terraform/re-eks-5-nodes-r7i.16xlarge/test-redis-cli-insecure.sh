@@ -68,11 +68,46 @@ echo ""
 echo "Connecting to Redis Enterprise Database..."
 echo "Command: redis-cli -h $DB_HOST -p $DB_PORT --tls --insecure --sni $SNI_HOST $AUTH_OPTION"
 echo ""
+echo "First, let's check if we can reach the host and port using telnet..."
+echo "Command: timeout 5 telnet $DB_HOST $DB_PORT"
+echo ""
+
+# Try to connect using telnet with a timeout
+timeout 5 telnet "$DB_HOST" "$DB_PORT" 2>&1 || echo "Telnet connection failed or timed out."
+
+echo ""
+echo "Now, let's try to connect using redis-cli with a timeout..."
+echo "Command: timeout 10 redis-cli -h $DB_HOST -p $DB_PORT --tls --insecure --sni $SNI_HOST $AUTH_OPTION PING"
+echo ""
+
+# Try a simple PING command with a timeout
+timeout 10 redis-cli -h "$DB_HOST" -p "$DB_PORT" --tls --insecure --sni "$SNI_HOST" $AUTH_OPTION PING || echo "Redis connection failed or timed out."
+
+echo ""
+echo "If the connection is hanging, there might be connectivity issues or firewall rules blocking the connection."
+echo "Let's try a different approach - connecting to the database from inside a Redis Enterprise pod."
+echo ""
+
+# Get a Redis Enterprise pod name
+POD_NAME=$(kubectl get pods -n "$NAMESPACE" -l "app=redis-enterprise" -o jsonpath='{.items[0].metadata.name}' 2>/dev/null)
+if [ -n "$POD_NAME" ]; then
+    echo "Using Redis Enterprise pod: $POD_NAME"
+    echo "Command: kubectl exec -it $POD_NAME -c redis-enterprise-node -n $NAMESPACE -- redis-cli -h redis-$DB_PORT.$NAMESPACE.svc.cluster.local -p $DB_PORT $AUTH_OPTION"
+    echo ""
+    echo "Would you like to try connecting from inside the pod? (y/n)"
+    read -r response
+    if [[ "$response" =~ ^([yY][eE][sS]|[yY])$ ]]; then
+        kubectl exec -it "$POD_NAME" -c redis-enterprise-node -n "$NAMESPACE" -- redis-cli -h "redis-$DB_PORT.$NAMESPACE.svc.cluster.local" -p "$DB_PORT" $AUTH_OPTION
+    fi
+else
+    echo "Could not find any Redis Enterprise pods. Make sure you have the correct permissions."
+fi
+
+echo ""
+echo "If you want to try connecting using the interactive redis-cli, run:"
+echo "redis-cli -h $DB_HOST -p $DB_PORT --tls --insecure --sni $SNI_HOST $AUTH_OPTION"
+echo ""
 echo "Once connected, you can run Redis commands like:"
 echo "PING"
 echo "SET key value"
 echo "GET key"
-echo ""
-
-# Connect using redis-cli
-redis-cli -h "$DB_HOST" -p "$DB_PORT" --tls --insecure --sni "$SNI_HOST" $AUTH_OPTION
