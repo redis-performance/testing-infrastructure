@@ -59,8 +59,17 @@ NODE_NAME="k8s-$INSTANCE_SHORT_ID"
 # Set the hostname
 hostnamectl set-hostname "$NODE_NAME"
 
+# Install necessary packages for AL2023
+dnf update -y
+dnf install -y amazon-ssm-agent
+
+# Start and enable SSM agent
+systemctl enable amazon-ssm-agent
+systemctl start amazon-ssm-agent
+
 # Bootstrap the node with the Project=k8s label and custom hostname
-/etc/eks/bootstrap.sh ${aws_eks_cluster.main.name} --kubelet-extra-args "--node-labels=Project=k8s,Name=$NODE_NAME --hostname-override=$NODE_NAME"
+# AL2023 uses a different bootstrap script location
+/usr/bin/bootstrap.sh ${aws_eks_cluster.main.name} --kubelet-extra-args "--node-labels=Project=k8s,Name=$NODE_NAME --hostname-override=$NODE_NAME"
 
 --==MYBOUNDARY==--
   EOF
@@ -95,7 +104,7 @@ resource "aws_eks_node_group" "r7i_nodes" {
 
   # These are required even though they're in the launch template
   # They're used to determine the AMI type
-  ami_type       = "AL2_x86_64"
+  ami_type       = "AL2023_x86_64"
 
   # Ensure proper node group updates
   update_config {
