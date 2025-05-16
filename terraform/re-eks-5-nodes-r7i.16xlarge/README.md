@@ -105,6 +105,20 @@ Monitors IP address usage in the subnet.
 ./monitor-ip-usage.sh
 ```
 
+### haproxy.sh
+
+Configures HAProxy Ingress Controller for external routing to Redis Enterprise services.
+
+```bash
+./haproxy.sh
+```
+
+This script:
+- Installs the HAProxy Ingress Controller using Helm
+- Creates Ingress resources for Redis Enterprise UI and API
+- Configures SSL passthrough for secure access
+- Provides access URLs for the Redis Enterprise services
+
 ## IP Address Optimization
 
 This configuration uses a reduced WARM_ENI_TARGET value of 10 (down from the default of 50) to prevent IP address exhaustion in the subnet. This is set in the cluster.tf file.
