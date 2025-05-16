@@ -133,6 +133,43 @@ This script:
 - Supports custom hostnames for the database
 - Provides connection information for accessing the database
 
+### apply-primary-haproxy.sh
+
+Applies the primary-haproxy.yaml file to set up external access to the primary database.
+
+```bash
+./apply-primary-haproxy.sh
+```
+
+This script:
+- Applies the primary-haproxy.yaml file with the correct port configuration
+- Provides instructions for testing the connection
+
+### test-conn-lb.sh
+
+Tests connection to Redis Enterprise Database using LoadBalancer hostname.
+
+```bash
+./test-conn-lb.sh
+```
+
+This script:
+- Uses the LoadBalancer hostname to connect to the database
+- Provides instructions for testing the connection using OpenSSL
+
+### setup-and-test-db-access.sh
+
+Sets up and tests external access to Redis Enterprise Database.
+
+```bash
+./setup-and-test-db-access.sh
+```
+
+This script:
+- Applies the primary-haproxy.yaml file
+- Retrieves the database hostname and port
+- Provides detailed instructions for testing the connection
+
 ## IP Address Optimization
 
 This configuration uses a reduced WARM_ENI_TARGET value of 10 (down from the default of 50) to prevent IP address exhaustion in the subnet. This is set in the cluster.tf file.
