@@ -28,10 +28,12 @@ echo "Database '$DB_NAME' is using port $DB_PORT."
 
 # Get the database hostname
 if [ "$USE_LB_HOSTNAME" = true ]; then
-    # Use the LoadBalancer hostname with the database name as subdomain
+    # Use the LoadBalancer hostname directly (not with subdomain)
     if [ -f "haproxy_hostname.txt" ]; then
         LB_HOSTNAME=$(cat haproxy_hostname.txt)
-        DB_HOST="$DB_NAME.$LB_HOSTNAME"
+        DB_HOST="$LB_HOSTNAME"
+        echo "Note: Using the LoadBalancer hostname directly."
+        echo "You'll need to use the Host header when connecting."
     else
         echo "Error: LoadBalancer hostname file not found."
         echo "Please run ./haproxy.sh first to set up HAProxy Ingress."
@@ -68,11 +70,22 @@ echo "Type 'PING' and press Enter to test the connection."
 echo "You should receive '+PONG' in response if the connection is successful."
 echo ""
 
+# Set the SNI hostname
+if [ "$USE_LB_HOSTNAME" = true ]; then
+    SNI_HOST="primary.$DB_HOST"
+else
+    SNI_HOST="$DB_HOST"
+fi
+
+echo "Using SNI hostname: $SNI_HOST"
+echo ""
+
 # Run OpenSSL client
 openssl s_client \
   -connect "$DB_HOST:443" \
   -crlf -CAfile "./$CERT_FILE" \
-  -servername "$DB_HOST"
+  -servername "$SNI_HOST" \
+  -verify_hostname "$SNI_HOST"
 
 # Clean up
 echo ""
