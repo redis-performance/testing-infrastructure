@@ -119,6 +119,20 @@ This script:
 - Configures SSL passthrough for secure access
 - Provides access URLs for the Redis Enterprise services
 
+### configure-db-ingress.sh
+
+Configures Ingress for Redis Enterprise Databases to enable external access.
+
+```bash
+./configure-db-ingress.sh --db-name DATABASE_NAME [--db-host HOSTNAME]
+```
+
+This script:
+- Dynamically retrieves the correct port for the specified Redis database
+- Creates an Ingress resource to route external traffic to the database
+- Supports custom hostnames for the database
+- Provides connection information for accessing the database
+
 ## IP Address Optimization
 
 This configuration uses a reduced WARM_ENI_TARGET value of 10 (down from the default of 50) to prevent IP address exhaustion in the subnet. This is set in the cluster.tf file.
