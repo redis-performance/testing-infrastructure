@@ -386,6 +386,37 @@ This script:
 - Provides detailed diagnostics if the connection fails
 - Offers guidance on how to use redis-cli to interact with the database
 
+### check-haproxy-status.sh
+
+Checks the status and configuration of HAProxy pods.
+
+```bash
+./check-haproxy-status.sh
+```
+
+This script:
+- Gets the status of HAProxy Ingress and Redis TCP proxy pods
+- Displays resource limits and requests for HAProxy pods
+- Shows HAProxy process information and version
+- Displays HAProxy configuration summary
+- Provides recommendations for optimizing HAProxy performance
+
+### benchmark-redis-proxy.sh
+
+Benchmarks the performance of the Redis TCP proxy.
+
+```bash
+./benchmark-redis-proxy.sh
+```
+
+This script:
+- Runs a simple ping test to verify connectivity
+- Performs a basic benchmark with ping, set, and get operations
+- Runs a comprehensive benchmark with various Redis commands
+- Tests pipeline performance with multiple commands
+- Checks HAProxy status and configuration
+- Provides recommendations for optimizing Redis TCP proxy performance
+
 ## IP Address Optimization
 
 This configuration uses a reduced WARM_ENI_TARGET value of 10 (down from the default of 50) to prevent IP address exhaustion in the subnet. This is set in the cluster.tf file.
