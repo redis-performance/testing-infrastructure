@@ -24,7 +24,7 @@ echo ""
 
 # Step 1: Create the IngressClass Resource
 echo "Step 1: Creating IngressClass resource..."
-cat <<EOF | kubectl apply -f -
+cat <<EOF | kubectl apply -f - --validate=false
 apiVersion: networking.k8s.io/v1
 kind: IngressClass
 metadata:
@@ -37,7 +37,7 @@ echo "IngressClass resource created."
 # Step 2: Create a TCP Services ConfigMap for HAProxy
 echo ""
 echo "Step 2: Creating TCP Services ConfigMap for HAProxy..."
-cat <<EOF | kubectl apply -f -
+cat <<EOF | kubectl apply -f - --validate=false
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -85,7 +85,7 @@ echo "Step 5: Checking if TCP proxy already exists..."
 PROXY_EXISTS=$(kubectl get deployment redis-tcp-proxy -n $NAMESPACE 2>/dev/null)
 if [ -z "$PROXY_EXISTS" ]; then
   echo "Creating a dedicated TCP proxy for Redis..."
-  cat <<EOF | kubectl apply -f -
+  cat <<EOF | kubectl apply -f - --validate=false
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -157,7 +157,7 @@ EOF
   echo "TCP proxy created."
 else
   echo "TCP proxy already exists. Updating configuration..."
-  cat <<EOF | kubectl apply -f -
+  cat <<EOF | kubectl apply -f - --validate=false
 apiVersion: v1
 kind: ConfigMap
 metadata:
