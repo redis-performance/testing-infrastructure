@@ -80,21 +80,31 @@ echo ""
 echo "Connecting to Redis Enterprise Database from inside pod $POD_NAME..."
 echo ""
 
+# Check if TLS is enabled for the database
+TLS_MODE=$(kubectl get redb "$DB_NAME" -n "$NAMESPACE" -o jsonpath='{.spec.tlsMode}' 2>/dev/null)
+TLS_OPTIONS=""
+if [ "$TLS_MODE" = "enabled" ] || [ "$TLS_MODE" = "required" ]; then
+    echo "TLS is enabled for this database. Using --tls --insecure options."
+    TLS_OPTIONS="--tls --insecure"
+else
+    echo "TLS is not enabled for this database."
+fi
+
 if [ -n "$PASSWORD" ]; then
     echo "Method 1: Using the -a option to provide the password (recommended):"
-    echo "Command: kubectl exec -it $POD_NAME -c redis-enterprise-node -n $NAMESPACE -- redis-cli -h $DB_HOST -p $DB_PORT $AUTH_OPTION"
+    echo "Command: kubectl exec -it $POD_NAME -c redis-enterprise-node -n $NAMESPACE -- redis-cli -h $DB_HOST -p $DB_PORT $TLS_OPTIONS $AUTH_OPTION"
     echo ""
 
     # Connect using redis-cli inside the pod with the password
-    kubectl exec -it "$POD_NAME" -c redis-enterprise-node -n "$NAMESPACE" -- redis-cli -h "$DB_HOST" -p "$DB_PORT" $AUTH_OPTION
+    kubectl exec -it "$POD_NAME" -c redis-enterprise-node -n "$NAMESPACE" -- redis-cli -h "$DB_HOST" -p "$DB_PORT" $TLS_OPTIONS $AUTH_OPTION
 else
     echo "Method 2: Using the auth command to provide the password:"
-    echo "Command: kubectl exec -it $POD_NAME -c redis-enterprise-node -n $NAMESPACE -- redis-cli -h $DB_HOST -p $DB_PORT"
+    echo "Command: kubectl exec -it $POD_NAME -c redis-enterprise-node -n $NAMESPACE -- redis-cli -h $DB_HOST -p $DB_PORT $TLS_OPTIONS"
     echo "Then enter: auth <password>"
     echo ""
 
     # Connect using redis-cli inside the pod without the password
-    kubectl exec -it "$POD_NAME" -c redis-enterprise-node -n "$NAMESPACE" -- redis-cli -h "$DB_HOST" -p "$DB_PORT"
+    kubectl exec -it "$POD_NAME" -c redis-enterprise-node -n "$NAMESPACE" -- redis-cli -h "$DB_HOST" -p "$DB_PORT" $TLS_OPTIONS
 fi
 
 echo ""
@@ -108,4 +118,9 @@ echo "Connection information summary:"
 echo "- Secret name: $SECRET_NAME"
 echo "- Service name: $DB_HOST"
 echo "- Port: $DB_PORT"
+echo "- TLS mode: $(if [ -n "$TLS_MODE" ]; then echo "$TLS_MODE"; else echo "<not retrieved>"; fi)"
+echo "- TLS options: $(if [ -n "$TLS_OPTIONS" ]; then echo "$TLS_OPTIONS"; else echo "none"; fi)"
 echo "- Password: $(if [ -n "$PASSWORD" ]; then echo "$PASSWORD"; else echo "<not retrieved>"; fi)"
+echo ""
+echo "To connect manually, use:"
+echo "redis-cli -h $DB_HOST -p $DB_PORT $TLS_OPTIONS -a \"$PASSWORD\""
