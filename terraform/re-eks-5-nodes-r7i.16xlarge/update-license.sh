@@ -33,15 +33,21 @@ check_license_file() {
         echo "Please place your Redis Enterprise license in a file named '$LICENSE_FILE' in the current directory."
         exit 1
     fi
+
+    # Warn about not committing the license file
+    echo "WARNING: Do not commit the license.txt file to Git!"
+    echo "The license file contains sensitive information and should not be stored in version control."
+    echo "The .gitignore file is configured to ignore *.txt files, so license.txt should be excluded automatically."
+    echo ""
 }
 
 # Function to update the license using a Kubernetes secret
 update_license_secret() {
     check_license_file
-    
+
     echo "Reading license from $LICENSE_FILE..."
     LICENSE_CONTENT=$(cat "$LICENSE_FILE")
-    
+
     # Check if the secret already exists
     if kubectl get secret "$LICENSE_SECRET_NAME" -n "$NAMESPACE" &>/dev/null; then
         echo "Updating existing license secret '$LICENSE_SECRET_NAME'..."
@@ -49,33 +55,33 @@ update_license_secret() {
     else
         echo "Creating new license secret '$LICENSE_SECRET_NAME'..."
     fi
-    
+
     # Create the secret with the license content
     kubectl create secret generic "$LICENSE_SECRET_NAME" \
         --from-file=license="$LICENSE_FILE" \
         -n "$NAMESPACE"
-    
+
     echo "License secret created/updated successfully."
-    
+
     # Check if the REC already has the licenseSecretName field
     if kubectl get rec "$REC_NAME" -n "$NAMESPACE" -o jsonpath='{.spec.licenseSecretName}' | grep -q "$LICENSE_SECRET_NAME"; then
         echo "Redis Enterprise Cluster is already configured to use license secret '$LICENSE_SECRET_NAME'."
     else
         echo "Updating Redis Enterprise Cluster to use license secret '$LICENSE_SECRET_NAME'..."
-        
+
         # Create a patch to update the licenseSecretName field
         cat <<EOF > /tmp/rec-license-patch.yaml
 spec:
   licenseSecretName: $LICENSE_SECRET_NAME
 EOF
-        
+
         # Apply the patch
         kubectl patch rec "$REC_NAME" -n "$NAMESPACE" --patch-file /tmp/rec-license-patch.yaml --type=merge
-        
+
         # Clean up
         rm /tmp/rec-license-patch.yaml
     fi
-    
+
     echo "License update completed successfully."
     echo "The Redis Enterprise Cluster will use the new license after a few moments."
 }
@@ -83,25 +89,25 @@ EOF
 # Function to update the license directly in the REC custom resource
 update_license_inline() {
     check_license_file
-    
+
     echo "Reading license from $LICENSE_FILE..."
     LICENSE_CONTENT=$(cat "$LICENSE_FILE")
-    
+
     echo "Updating Redis Enterprise Cluster with inline license..."
-    
+
     # Create a patch to update the license field
     cat <<EOF > /tmp/rec-license-patch.yaml
 spec:
   license: |
 $(sed 's/^/    /' "$LICENSE_FILE")
 EOF
-    
+
     # Apply the patch
     kubectl patch rec "$REC_NAME" -n "$NAMESPACE" --patch-file /tmp/rec-license-patch.yaml --type=merge
-    
+
     # Clean up
     rm /tmp/rec-license-patch.yaml
-    
+
     echo "License update completed successfully."
     echo "The Redis Enterprise Cluster will use the new license after a few moments."
 }
