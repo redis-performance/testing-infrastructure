@@ -324,6 +324,34 @@ This script:
 - Provides detailed diagnostics if the connection fails
 - Offers an interactive environment for further testing
 
+### redis-tcp-proxy.yaml
+
+Deploys a dedicated TCP proxy for Redis Enterprise Database access.
+
+```bash
+kubectl apply -f redis-tcp-proxy.yaml
+```
+
+This file:
+- Creates a deployment with HAProxy configured for TCP mode
+- Sets up a LoadBalancer service to expose the proxy
+- Configures HAProxy to handle TLS traffic to the Redis Enterprise Database
+- Provides a reliable way to access the Redis Enterprise Database from outside the cluster
+
+### test-redis-tcp-proxy.sh
+
+Tests connection to Redis Enterprise Database through the TCP proxy.
+
+```bash
+./test-redis-tcp-proxy.sh
+```
+
+This script:
+- Tests the connection to the Redis Enterprise Database through the TCP proxy
+- Tries both with and without TLS to determine the correct connection method
+- Provides detailed diagnostics if the connection fails
+- Offers guidance on how to use redis-cli to interact with the database
+
 ## IP Address Optimization
 
 This configuration uses a reduced WARM_ENI_TARGET value of 10 (down from the default of 50) to prevent IP address exhaustion in the subnet. This is set in the cluster.tf file.
