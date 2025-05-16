@@ -92,12 +92,29 @@ echo ""
 POD_NAME=$(kubectl get pods -n "$NAMESPACE" -l "app=redis-enterprise" -o jsonpath='{.items[0].metadata.name}' 2>/dev/null)
 if [ -n "$POD_NAME" ]; then
     echo "Using Redis Enterprise pod: $POD_NAME"
-    echo "Command: kubectl exec -it $POD_NAME -c redis-enterprise-node -n $NAMESPACE -- redis-cli -h redis-$DB_PORT.$NAMESPACE.svc.cluster.local -p $DB_PORT $AUTH_OPTION"
+
+    # Check if TLS is enabled for the database
+    TLS_MODE=$(kubectl get redb "$DB_NAME" -n "$NAMESPACE" -o jsonpath='{.spec.tlsMode}' 2>/dev/null)
+    TLS_OPTIONS=""
+    if [ "$TLS_MODE" = "enabled" ] || [ "$TLS_MODE" = "required" ]; then
+        echo "TLS is enabled for this database. Using --tls --insecure options for internal connection."
+        TLS_OPTIONS="--tls --insecure"
+    fi
+
+    # Get the internal service name
+    CLUSTER_NAME=$(kubectl get redb "$DB_NAME" -n "$NAMESPACE" -o jsonpath='{.spec.redisEnterpriseCluster.name}' 2>/dev/null)
+    if [ -n "$CLUSTER_NAME" ]; then
+        INTERNAL_HOST="redis-$DB_PORT.$CLUSTER_NAME.$NAMESPACE.svc.cluster.local"
+    else
+        INTERNAL_HOST="redis-$DB_PORT.$NAMESPACE.svc.cluster.local"
+    fi
+
+    echo "Command: kubectl exec -it $POD_NAME -c redis-enterprise-node -n $NAMESPACE -- redis-cli -h $INTERNAL_HOST -p $DB_PORT $TLS_OPTIONS $AUTH_OPTION"
     echo ""
     echo "Would you like to try connecting from inside the pod? (y/n)"
     read -r response
     if [[ "$response" =~ ^([yY][eE][sS]|[yY])$ ]]; then
-        kubectl exec -it "$POD_NAME" -c redis-enterprise-node -n "$NAMESPACE" -- redis-cli -h "redis-$DB_PORT.$NAMESPACE.svc.cluster.local" -p "$DB_PORT" $AUTH_OPTION
+        kubectl exec -it "$POD_NAME" -c redis-enterprise-node -n "$NAMESPACE" -- redis-cli -h "$INTERNAL_HOST" -p "$DB_PORT" $TLS_OPTIONS $AUTH_OPTION
     fi
 else
     echo "Could not find any Redis Enterprise pods. Make sure you have the correct permissions."
