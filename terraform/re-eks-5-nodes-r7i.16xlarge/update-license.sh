@@ -1,15 +1,35 @@
 #!/bin/bash
+#
+# update-license.sh - Redis Enterprise Cluster License Update Script
+#
+# Description:
+#   This script automates the process of updating the Redis Enterprise Cluster license.
+#   It provides two methods:
+#   1. Using a Kubernetes secret (recommended)
+#   2. Directly in the REC custom resource (not recommended)
+#
+# Usage:
+#   ./update-license.sh [OPTION]
+#
+# Options:
+#   --secret    Update the license using a Kubernetes secret (recommended)
+#   --inline    Update the license directly in the REC custom resource (not recommended)
+#   --help      Display help information
+#
+# Author: Redis Labs
+# Date: 2023
+#
+# For detailed documentation, see README-license.md
 
-# Script to update the Redis Enterprise Cluster license
-# This script reads the license from license.txt and updates the Kubernetes secret
-
+# Exit immediately if a command exits with a non-zero status
 set -e
 
-# Configuration
-REC_NAME="rec-large-scale-5nodes"
-LICENSE_FILE="license.txt"
-LICENSE_SECRET_NAME="redis-enterprise-license"
-NAMESPACE="rec-large-scale"
+# Configuration variables
+# These can be modified to match your environment if needed
+REC_NAME="rec-large-scale-5nodes"          # Name of the Redis Enterprise Cluster
+LICENSE_FILE="license.txt"                 # Path to the license file
+LICENSE_SECRET_NAME="redis-enterprise-license"  # Name of the Kubernetes secret
+NAMESPACE="rec-large-scale"                # Kubernetes namespace
 
 # Function to display usage information
 show_usage() {
