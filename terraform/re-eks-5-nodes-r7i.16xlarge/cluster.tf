@@ -104,7 +104,7 @@ resource "aws_eks_node_group" "r7i_nodes" {
 
   # These are required even though they're in the launch template
   # They're used to determine the AMI type
-  ami_type       = "AL2023_x86_64"
+  ami_type       = "AL2023_x86_64_STANDARD"
 
   # Ensure proper node group updates
   update_config {
@@ -301,18 +301,46 @@ resource "null_resource" "update_kubeconfig" {
 resource "null_resource" "delete_aws_node_ds" {
   provisioner "local-exec" {
     command = <<EOT
+# Wait for the cluster to be fully available
+echo "Waiting for the cluster to be fully available..."
+kubectl wait --for=condition=available --timeout=300s deployment/coredns -n kube-system || true
+
+# Delete the aws-node DaemonSet if it exists
 if kubectl -n kube-system get daemonset aws-node >/dev/null 2>&1; then
   echo "Deleting aws-node DaemonSet..."
   kubectl -n kube-system delete daemonset aws-node
 else
   echo "DaemonSet aws-node already deleted or does not exist."
 fi
+
+# Delete the amazon-vpc-cni ConfigMap if it exists
+if kubectl -n kube-system get configmap amazon-vpc-cni >/dev/null 2>&1; then
+  echo "Deleting amazon-vpc-cni ConfigMap..."
+  kubectl -n kube-system delete configmap amazon-vpc-cni
+else
+  echo "ConfigMap amazon-vpc-cni already deleted or does not exist."
+fi
+
+# Delete other VPC CNI resources that might cause conflicts
+for resource in "clusterrole/aws-node" "clusterrolebinding/aws-node" "serviceaccount/aws-node -n kube-system"; do
+  if kubectl get $resource >/dev/null 2>&1; then
+    echo "Deleting $resource..."
+    kubectl delete $resource
+  else
+    echo "$resource already deleted or does not exist."
+  fi
+done
 EOT
   }
 
   triggers = {
     always_run = "${timestamp()}"
   }
+
+  depends_on = [
+    aws_eks_cluster.main,
+    null_resource.update_kubeconfig
+  ]
 }
 
 resource "null_resource" "patch_vpc_cni_resources" {
@@ -320,6 +348,11 @@ resource "null_resource" "patch_vpc_cni_resources" {
     command = <<EOT
 set -e
 
+# Wait for the cluster to be fully available
+echo "Waiting for the cluster to be fully available..."
+kubectl wait --for=condition=available --timeout=300s deployment/coredns -n kube-system || true
+
+# Check and patch ConfigMap
 if kubectl -n kube-system get configmap amazon-vpc-cni >/dev/null 2>&1; then
   echo "Patching ConfigMap..."
   kubectl -n kube-system annotate configmap amazon-vpc-cni \
@@ -331,6 +364,7 @@ else
   echo "ConfigMap amazon-vpc-cni not found. Skipping."
 fi
 
+# Check and patch ClusterRole
 if kubectl get clusterrole aws-node >/dev/null 2>&1; then
   echo "Patching ClusterRole..."
   kubectl annotate clusterrole aws-node \
@@ -342,6 +376,7 @@ else
   echo "ClusterRole aws-node not found. Skipping."
 fi
 
+# Check and patch ClusterRoleBinding
 if kubectl get clusterrolebinding aws-node >/dev/null 2>&1; then
   echo "Patching ClusterRoleBinding..."
   kubectl annotate clusterrolebinding aws-node \
@@ -353,6 +388,7 @@ else
   echo "ClusterRoleBinding aws-node not found. Skipping."
 fi
 
+# Check and patch DaemonSet
 if kubectl -n kube-system get daemonset aws-node >/dev/null 2>&1; then
   echo "Patching DaemonSet..."
   kubectl -n kube-system annotate daemonset aws-node \
@@ -363,12 +399,28 @@ if kubectl -n kube-system get daemonset aws-node >/dev/null 2>&1; then
 else
   echo "DaemonSet aws-node not found. Skipping."
 fi
+
+# If ConfigMap exists but patching failed, try to delete it
+if kubectl -n kube-system get configmap amazon-vpc-cni >/dev/null 2>&1; then
+  # Check if annotations are properly set
+  ANNOTATIONS=$(kubectl -n kube-system get configmap amazon-vpc-cni -o jsonpath='{.metadata.annotations}')
+  if [[ "$ANNOTATIONS" != *"meta.helm.sh/release-name"* ]] || [[ "$ANNOTATIONS" != *"meta.helm.sh/release-namespace"* ]]; then
+    echo "ConfigMap annotations not properly set. Deleting ConfigMap for recreation..."
+    kubectl -n kube-system delete configmap amazon-vpc-cni
+  fi
+fi
 EOT
   }
 
   triggers = {
     always_run = "${timestamp()}"
   }
+
+  depends_on = [
+    aws_eks_cluster.main,
+    null_resource.update_kubeconfig,
+    aws_eks_node_group.r7i_nodes
+  ]
 }
 
 resource "helm_release" "aws_vpc_cni" {
@@ -376,13 +428,27 @@ resource "helm_release" "aws_vpc_cni" {
     aws_eks_cluster.main,
     null_resource.update_kubeconfig,
     null_resource.patch_vpc_cni_resources,
-    null_resource.delete_aws_node_ds
+    null_resource.delete_aws_node_ds,
+    aws_eks_node_group.r7i_nodes
   ]
 
   name       = "aws-vpc-cni"
   namespace  = "kube-system"
   repository = "https://aws.github.io/eks-charts"
   chart      = "aws-vpc-cni"
+  version    = "1.16.0"  # Specify a version for stability
+
+  # Increase timeout for installation
+  timeout    = 600
+
+  # Force resource recreation if needed
+  recreate_pods = true
+
+  # Attempt to fix issues automatically
+  atomic = true
+
+  # Wait for resources to be ready
+  wait = true
 
   set {
     name  = "enablePrefixDelegation"
@@ -412,5 +478,18 @@ resource "helm_release" "aws_vpc_cni" {
   set {
     name  = "serviceAccount.name"
     value = "aws-node"
+  }
+
+  # Add cleanup on fail to ensure resources are properly cleaned up if installation fails
+  set {
+    name  = "cleanupOnFail"
+    value = "true"
+  }
+
+  # Add a lifecycle block to handle failures gracefully
+  lifecycle {
+    ignore_changes = [
+      set,  # Ignore changes to set blocks to prevent unnecessary updates
+    ]
   }
 }
