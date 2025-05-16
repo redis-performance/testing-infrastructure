@@ -13,6 +13,56 @@ resource "aws_eks_cluster" "main" {
   depends_on = [aws_iam_role_policy_attachment.eks_cluster_AmazonEKSClusterPolicy]
 }
 
+resource "aws_launch_template" "r7i_nodes" {
+  name_prefix   = "${var.cluster_name}-r7i-nodes-"
+  instance_type = "r7i.16xlarge"
+
+  block_device_mappings {
+    device_name = "/dev/xvda"
+
+    ebs {
+      volume_size = 1024
+      volume_type = "gp3"
+      delete_on_termination = true
+    }
+  }
+
+  tag_specifications {
+    resource_type = "instance"
+
+    tags = {
+      Project = "k8s"
+    }
+  }
+
+  # The actual node name will be set by a lifecycle hook in the node group
+  # that will tag the instance with a unique name based on its index
+  user_data = base64encode(<<-EOF
+    #!/bin/bash
+    set -o xtrace
+
+    # Get instance ID
+    INSTANCE_ID=$(curl -s http://169.254.169.254/latest/meta-data/instance-id)
+
+    # Get hostname from instance tags (will be set by ASG lifecycle hook)
+    REGION=$(curl -s http://169.254.169.254/latest/meta-data/placement/region)
+    NODE_NAME=$(aws ec2 describe-tags --region $REGION --filters "Name=resource-id,Values=$INSTANCE_ID" "Name=key,Values=Name" --query "Tags[0].Value" --output text)
+
+    # If node name is not set, use a default
+    if [ "$NODE_NAME" == "None" ] || [ -z "$NODE_NAME" ]; then
+      NODE_NAME="k8s-node-$INSTANCE_ID"
+    fi
+
+    # Set the hostname
+    hostnamectl set-hostname "$NODE_NAME"
+
+    # Bootstrap the node with the custom hostname and labels
+    /etc/eks/bootstrap.sh ${aws_eks_cluster.main.name} \
+      --kubelet-extra-args "--node-labels=Project=k8s,Name=$NODE_NAME --hostname-override=$NODE_NAME"
+  EOF
+  )
+}
+
 resource "aws_eks_node_group" "r7i_nodes" {
   cluster_name    = aws_eks_cluster.main.name
   node_group_name = "${var.cluster_name}-r7i-nodes"
@@ -25,9 +75,214 @@ resource "aws_eks_node_group" "r7i_nodes" {
     min_size     = 5
   }
 
-  instance_types = ["r7i.16xlarge"]
-  disk_size      = 1024
-  ami_type       = "AL2_x86_64"
+  # Use launch template instead of direct instance configuration
+  launch_template {
+    id      = aws_launch_template.r7i_nodes.id
+    version = aws_launch_template.r7i_nodes.latest_version
+  }
+
+  # Add labels directly to the node group
+  labels = {
+    "Project" = "k8s"
+  }
+
+  # Remove these as they're now defined in the launch template
+  # instance_types = ["r7i.16xlarge"]
+  # disk_size      = 1024
+  # ami_type       = "AL2_x86_64"
+
+  # This is needed to get the ASG name for the lifecycle hook
+  lifecycle {
+    ignore_changes = [scaling_config[0].desired_size]
+  }
+}
+
+# Get the Auto Scaling Group name from the node group
+data "aws_eks_node_group" "r7i_nodes" {
+  cluster_name    = aws_eks_cluster.main.name
+  node_group_name = aws_eks_node_group.r7i_nodes.node_group_name
+
+  depends_on = [aws_eks_node_group.r7i_nodes]
+}
+
+# Create a Lambda function to set node names
+resource "aws_iam_role" "node_naming_lambda_role" {
+  name = "${var.cluster_name}-node-naming-lambda-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Action = "sts:AssumeRole"
+      Effect = "Allow"
+      Principal = {
+        Service = "lambda.amazonaws.com"
+      }
+    }]
+  })
+}
+
+resource "aws_iam_policy" "node_naming_lambda_policy" {
+  name        = "${var.cluster_name}-node-naming-lambda-policy"
+  description = "Policy for Lambda function to name EKS nodes"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = [
+          "logs:CreateLogGroup",
+          "logs:CreateLogStream",
+          "logs:PutLogEvents"
+        ]
+        Effect   = "Allow"
+        Resource = "arn:aws:logs:*:*:*"
+      },
+      {
+        Action = [
+          "ec2:CreateTags",
+          "ec2:DescribeInstances",
+          "autoscaling:CompleteLifecycleAction",
+          "autoscaling:DescribeAutoScalingGroups"
+        ]
+        Effect   = "Allow"
+        Resource = "*"
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "node_naming_lambda_policy_attachment" {
+  policy_arn = aws_iam_policy.node_naming_lambda_policy.arn
+  role       = aws_iam_role.node_naming_lambda_role.name
+}
+
+# Create a Lambda function to set node names
+resource "aws_lambda_function" "node_naming_lambda" {
+  filename      = "node_naming_lambda.zip"
+  function_name = "${var.cluster_name}-node-naming-lambda"
+  role          = aws_iam_role.node_naming_lambda_role.arn
+  handler       = "index.handler"
+  runtime       = "nodejs14.x"
+  timeout       = 30
+
+  # Create the Lambda function code
+  provisioner "local-exec" {
+    command = <<EOT
+cat > index.js << 'EOF'
+const AWS = require('aws-sdk');
+const ec2 = new AWS.EC2();
+const autoscaling = new AWS.AutoScaling();
+
+exports.handler = async (event) => {
+    console.log('Event:', JSON.stringify(event, null, 2));
+
+    const instanceId = event.detail.EC2InstanceId;
+    const lifecycleHookName = event.detail.LifecycleHookName;
+    const autoScalingGroupName = event.detail.AutoScalingGroupName;
+
+    try {
+        // Get the instance index from the ASG
+        const asgResponse = await autoscaling.describeAutoScalingGroups({
+            AutoScalingGroupNames: [autoScalingGroupName]
+        }).promise();
+
+        const instances = asgResponse.AutoScalingGroups[0].Instances;
+        const instanceIds = instances.map(i => i.InstanceId);
+        const instanceIndex = instanceIds.indexOf(instanceId);
+
+        // Create a node name with the index
+        const nodeName = `k8s-${instanceIndex + 1}`;
+
+        console.log(`Setting name for instance ${instanceId} to ${nodeName}`);
+
+        // Tag the instance with the node name
+        await ec2.createTags({
+            Resources: [instanceId],
+            Tags: [
+                {
+                    Key: 'Name',
+                    Value: nodeName
+                }
+            ]
+        }).promise();
+
+        // Complete the lifecycle action
+        await autoscaling.completeLifecycleAction({
+            LifecycleHookName: lifecycleHookName,
+            AutoScalingGroupName: autoScalingGroupName,
+            LifecycleActionResult: 'CONTINUE',
+            InstanceId: instanceId
+        }).promise();
+
+        return {
+            statusCode: 200,
+            body: JSON.stringify('Node naming completed successfully'),
+        };
+    } catch (error) {
+        console.error('Error:', error);
+
+        // Complete the lifecycle action even if there's an error
+        try {
+            await autoscaling.completeLifecycleAction({
+                LifecycleHookName: lifecycleHookName,
+                AutoScalingGroupName: autoScalingGroupName,
+                LifecycleActionResult: 'CONTINUE',
+                InstanceId: instanceId
+            }).promise();
+        } catch (completeError) {
+            console.error('Error completing lifecycle action:', completeError);
+        }
+
+        return {
+            statusCode: 500,
+            body: JSON.stringify('Error naming node: ' + error.message),
+        };
+    }
+};
+EOF
+
+zip node_naming_lambda.zip index.js
+EOT
+  }
+
+  depends_on = [aws_iam_role_policy_attachment.node_naming_lambda_policy_attachment]
+}
+
+# Create an EventBridge rule to trigger the Lambda function
+resource "aws_cloudwatch_event_rule" "node_naming_event_rule" {
+  name        = "${var.cluster_name}-node-naming-event-rule"
+  description = "Trigger Lambda function when a new EKS node is launched"
+
+  event_pattern = jsonencode({
+    source      = ["aws.autoscaling"]
+    detail-type = ["EC2 Instance-launch Lifecycle Action"]
+    detail = {
+      AutoScalingGroupName = [data.aws_eks_node_group.r7i_nodes.resources[0].autoscaling_groups[0].name]
+    }
+  })
+}
+
+resource "aws_cloudwatch_event_target" "node_naming_event_target" {
+  rule      = aws_cloudwatch_event_rule.node_naming_event_rule.name
+  target_id = "node-naming-lambda"
+  arn       = aws_lambda_function.node_naming_lambda.arn
+}
+
+resource "aws_lambda_permission" "node_naming_lambda_permission" {
+  statement_id  = "AllowExecutionFromEventBridge"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.node_naming_lambda.function_name
+  principal     = "events.amazonaws.com"
+  source_arn    = aws_cloudwatch_event_rule.node_naming_event_rule.arn
+}
+
+# Create a lifecycle hook for the Auto Scaling Group
+resource "aws_autoscaling_lifecycle_hook" "node_naming_lifecycle_hook" {
+  name                   = "${var.cluster_name}-node-naming-lifecycle-hook"
+  autoscaling_group_name = data.aws_eks_node_group.r7i_nodes.resources[0].autoscaling_groups[0].name
+  default_result         = "CONTINUE"
+  heartbeat_timeout      = 300
+  lifecycle_transition   = "autoscaling:EC2_INSTANCE_LAUNCHING"
 }
 
 # === EKS cluster role ===
@@ -85,6 +340,31 @@ resource "aws_iam_role_policy_attachment" "eks_cni_policy" {
 
 resource "aws_iam_role_policy_attachment" "ec2_container_registry_readonly" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
+  role       = aws_iam_role.eks_nodes.name
+}
+
+# Add a policy to allow nodes to describe instances and tags
+resource "aws_iam_policy" "node_describe_instances" {
+  name        = "${var.cluster_name}-node-describe-instances"
+  description = "Policy to allow EKS nodes to describe EC2 instances and tags"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = [
+          "ec2:DescribeInstances",
+          "ec2:DescribeTags"
+        ]
+        Effect   = "Allow"
+        Resource = "*"
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "node_describe_instances" {
+  policy_arn = aws_iam_policy.node_describe_instances.arn
   role       = aws_iam_role.eks_nodes.name
 }
 
