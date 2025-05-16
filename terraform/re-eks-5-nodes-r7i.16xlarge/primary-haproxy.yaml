@@ -4,17 +4,18 @@ metadata:
   name: primary-haproxy-ingress
   namespace: rec-large-scale
   annotations:
-    kubernetes.io/ingress.class: haproxy
-    ingress.kubernetes.io/ssl-passthrough: "true"
+    haproxy.org/ssl-redirect: "true"
+    haproxy.org/ssl-passthrough: "true"
 spec:
+  ingressClassName: haproxy
   rules:
     - host: primary-db.example.com
       http:
         paths:
           - path: /
-            pathType: ImplementationSpecific
+            pathType: Prefix
             backend:
               service:
                 name: primary
                 port:
-                  number: 12462
+                  number: 11793
