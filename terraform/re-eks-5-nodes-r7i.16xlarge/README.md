@@ -196,6 +196,33 @@ This script:
 - Shows how to connect using the LoadBalancer hostname or Ingress hostname
 - Includes options for both insecure TLS and certificate verification
 
+### test-conn-internal.sh
+
+Tests connection to Redis Enterprise Database from inside a Redis Enterprise pod.
+
+```bash
+./test-conn-internal.sh
+```
+
+This script:
+- Connects to the database from inside a Redis Enterprise pod
+- Uses the internal service name to bypass external connectivity issues
+- Provides a reliable way to test database connectivity
+
+### check-haproxy-config.sh
+
+Checks HAProxy Ingress configuration for Redis Enterprise Database.
+
+```bash
+./check-haproxy-config.sh
+```
+
+This script:
+- Verifies that HAProxy Ingress is installed and running
+- Checks the Ingress resource configuration
+- Ensures that the port and service name are correctly configured
+- Provides troubleshooting information for connectivity issues
+
 ## IP Address Optimization
 
 This configuration uses a reduced WARM_ENI_TARGET value of 10 (down from the default of 50) to prevent IP address exhaustion in the subnet. This is set in the cluster.tf file.
