@@ -251,6 +251,48 @@ This script:
 - Provides the correct internal and external connection strings
 - Helps diagnose connectivity issues by showing all relevant information
 
+### inspect-haproxy-config.sh
+
+Inspects HAProxy Ingress configuration for Redis Enterprise Database access.
+
+```bash
+./inspect-haproxy-config.sh
+```
+
+This script:
+- Examines the HAProxy Ingress configuration file
+- Checks for SSL passthrough and TCP mode configuration
+- Verifies backend configuration for Redis Enterprise Database
+- Analyzes HAProxy Ingress logs for errors
+
+### check-ingress-annotations.sh
+
+Checks Ingress annotations for Redis Enterprise Database access.
+
+```bash
+./check-ingress-annotations.sh
+```
+
+This script:
+- Verifies that the correct annotations are set on the Ingress resource
+- Checks for SSL passthrough and SSL redirect annotations
+- Ensures the Ingress class is set to HAProxy
+- Validates backend service and port configuration
+
+### fix-haproxy-config.sh
+
+Fixes HAProxy Ingress configuration for Redis Enterprise Database access.
+
+```bash
+./fix-haproxy-config.sh
+```
+
+This script:
+- Updates or creates Ingress resources with the correct configuration
+- Sets the required annotations for SSL passthrough
+- Ensures the correct port is used for the Redis Enterprise Database
+- Creates an additional Ingress resource for the LoadBalancer hostname
+
 ## IP Address Optimization
 
 This configuration uses a reduced WARM_ENI_TARGET value of 10 (down from the default of 50) to prevent IP address exhaustion in the subnet. This is set in the cluster.tf file.
