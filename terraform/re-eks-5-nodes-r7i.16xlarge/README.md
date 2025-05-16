@@ -209,6 +209,20 @@ This script:
 - Uses the internal service name to bypass external connectivity issues
 - Provides a reliable way to test database connectivity
 
+### test-conn-pod.sh
+
+Tests connection to Redis Enterprise Database from inside a Redis Enterprise pod with detailed steps.
+
+```bash
+./test-conn-pod.sh
+```
+
+This script:
+- Follows the official Redis Enterprise documentation for connecting to a database
+- Retrieves the secret name, service names, and password from the Kubernetes secret
+- Uses the --tls --insecure options when TLS is enabled
+- Provides a connection information summary for easier troubleshooting
+
 ### check-haproxy-config.sh
 
 Checks HAProxy Ingress configuration for Redis Enterprise Database.
