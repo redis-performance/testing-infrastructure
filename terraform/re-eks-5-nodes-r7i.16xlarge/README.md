@@ -223,6 +223,20 @@ This script:
 - Ensures that the port and service name are correctly configured
 - Provides troubleshooting information for connectivity issues
 
+### check-db-status.sh
+
+Checks Redis Enterprise Database status and provides detailed information.
+
+```bash
+./check-db-status.sh
+```
+
+This script:
+- Retrieves detailed information about the Redis Enterprise Database
+- Shows the database configuration, endpoints, and services
+- Provides the correct internal and external connection strings
+- Helps diagnose connectivity issues by showing all relevant information
+
 ## IP Address Optimization
 
 This configuration uses a reduced WARM_ENI_TARGET value of 10 (down from the default of 50) to prevent IP address exhaustion in the subnet. This is set in the cluster.tf file.
