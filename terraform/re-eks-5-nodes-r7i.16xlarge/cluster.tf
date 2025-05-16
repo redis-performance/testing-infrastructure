@@ -38,23 +38,31 @@ resource "aws_launch_template" "r7i_nodes" {
   }
 
   # Set up node with Project=k8s label and custom naming pattern
+  # Use MIME multi-part format for user data
   user_data = base64encode(<<-EOF
-    #!/bin/bash
-    set -o xtrace
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="==MYBOUNDARY=="
 
-    # Get instance ID and extract the last part for a shorter name
-    INSTANCE_ID=$(curl -s http://169.254.169.254/latest/meta-data/instance-id)
-    INSTANCE_SHORT_ID=$(echo $INSTANCE_ID | cut -d '-' -f2 | cut -c 1-8)
+--==MYBOUNDARY==
+Content-Type: text/x-shellscript; charset="us-ascii"
 
-    # Create a node name with k8s prefix
-    NODE_NAME="k8s-$INSTANCE_SHORT_ID"
+#!/bin/bash
+set -o xtrace
 
-    # Set the hostname
-    hostnamectl set-hostname "$NODE_NAME"
+# Get instance ID and extract the last part for a shorter name
+INSTANCE_ID=$(curl -s http://169.254.169.254/latest/meta-data/instance-id)
+INSTANCE_SHORT_ID=$(echo $INSTANCE_ID | cut -d '-' -f2 | cut -c 1-8)
 
-    # Bootstrap the node with the Project=k8s label and custom hostname
-    /etc/eks/bootstrap.sh ${aws_eks_cluster.main.name} \
-      --kubelet-extra-args "--node-labels=Project=k8s,kubernetes.io/hostname=$NODE_NAME --hostname-override=$NODE_NAME"
+# Create a node name with k8s prefix
+NODE_NAME="k8s-$INSTANCE_SHORT_ID"
+
+# Set the hostname
+hostnamectl set-hostname "$NODE_NAME"
+
+# Bootstrap the node with the Project=k8s label and custom hostname
+/etc/eks/bootstrap.sh ${aws_eks_cluster.main.name} --kubelet-extra-args "--node-labels=Project=k8s,Name=$NODE_NAME --hostname-override=$NODE_NAME"
+
+--==MYBOUNDARY==--
   EOF
   )
 }
@@ -82,10 +90,22 @@ resource "aws_eks_node_group" "r7i_nodes" {
     "Project" = "k8s"
   }
 
-  # Remove these as they're now defined in the launch template
-  # instance_types = ["r7i.16xlarge"]
-  # disk_size      = 1024
-  # ami_type       = "AL2_x86_64"
+  # Required for EKS managed node groups
+  capacity_type = "ON_DEMAND"
+
+  # These are required even though they're in the launch template
+  # They're used to determine the AMI type
+  ami_type       = "AL2_x86_64"
+
+  # Ensure proper node group updates
+  update_config {
+    max_unavailable = 1
+  }
+
+  # Ignore changes to desired_size as it might be modified outside of Terraform
+  lifecycle {
+    ignore_changes = [scaling_config[0].desired_size]
+  }
 }
 
 # === EKS cluster role ===
