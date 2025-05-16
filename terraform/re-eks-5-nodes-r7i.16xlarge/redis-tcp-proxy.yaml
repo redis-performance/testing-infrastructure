@@ -1,0 +1,67 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis-tcp-proxy
+  namespace: rec-large-scale
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redis-tcp-proxy
+  template:
+    metadata:
+      labels:
+        app: redis-tcp-proxy
+    spec:
+      containers:
+      - name: haproxy
+        image: haproxy:latest
+        ports:
+        - containerPort: 6379
+        volumeMounts:
+        - name: haproxy-config
+          mountPath: /usr/local/etc/haproxy/haproxy.cfg
+          subPath: haproxy.cfg
+      volumes:
+      - name: haproxy-config
+        configMap:
+          name: redis-tcp-proxy-config
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: redis-tcp-proxy-config
+  namespace: rec-large-scale
+data:
+  haproxy.cfg: |
+    global
+      daemon
+      maxconn 256
+
+    defaults
+      mode tcp
+      timeout connect 5s
+      timeout client 50s
+      timeout server 50s
+
+    frontend redis_frontend
+      bind *:6379
+      default_backend redis_backend
+
+    backend redis_backend
+      mode tcp
+      server redis primary.rec-large-scale.svc.cluster.local:11793 check ssl verify none
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-tcp-proxy
+  namespace: rec-large-scale
+spec:
+  type: LoadBalancer
+  ports:
+  - port: 6379
+    targetPort: 6379
+    protocol: TCP
+  selector:
+    app: redis-tcp-proxy
