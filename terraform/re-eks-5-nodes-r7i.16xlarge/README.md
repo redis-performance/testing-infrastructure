@@ -170,6 +170,32 @@ This script:
 - Retrieves the database hostname and port
 - Provides detailed instructions for testing the connection
 
+### test-redis-cli-insecure.sh
+
+Tests connection to Redis Enterprise Database using redis-cli with insecure TLS.
+
+```bash
+./test-redis-cli-insecure.sh
+```
+
+This script:
+- Uses redis-cli with the --tls --insecure options to skip certificate verification
+- Connects to the database using the LoadBalancer hostname
+- Uses SNI (Server Name Indication) to route the request to the correct backend
+
+### redis-cli-instructions.sh
+
+Provides instructions for connecting to Redis Enterprise Database using redis-cli.
+
+```bash
+./redis-cli-instructions.sh
+```
+
+This script:
+- Provides detailed instructions for installing and using redis-cli
+- Shows how to connect using the LoadBalancer hostname or Ingress hostname
+- Includes options for both insecure TLS and certificate verification
+
 ## IP Address Optimization
 
 This configuration uses a reduced WARM_ENI_TARGET value of 10 (down from the default of 50) to prevent IP address exhaustion in the subnet. This is set in the cluster.tf file.
