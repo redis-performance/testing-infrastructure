@@ -8,11 +8,8 @@ spec:
 
   persistentSpec:
     # Whether to enable persistent storage for the Redis Enterprise nodes.
-    enabled: true
+    enabled: false
 
-    # The size of the persistent volume for each Redis Enterprise node.
-    volumeSize: 500Gi
-    
   redisEnterpriseNodeResources:
     limits:
       cpu: 62000m

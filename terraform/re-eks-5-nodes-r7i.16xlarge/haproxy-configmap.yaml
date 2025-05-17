@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: haproxy-ingress
+  namespace: rec-large-scale
+data:
+  tcp-services: |
+    11793 rec-large-scale/primary:11793

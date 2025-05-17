@@ -26,17 +26,17 @@ echo ""
 echo -e "${BOLD}Step 1: Checking if the Redis Enterprise Cluster is ready...${NC}"
 CLUSTER_STATUS=$(kubectl get rec $CLUSTER_NAME -n $NAMESPACE -o jsonpath='{.status.state}' 2>/dev/null)
 
-# if [ -z "$CLUSTER_STATUS" ]; then
-#     echo -e "${RED}Error: Redis Enterprise Cluster not found or not accessible.${NC}"
-#     echo "Please make sure the Redis Enterprise Cluster is deployed and you have the correct permissions."
-#     exit 1
-# fi
+if [ -z "$CLUSTER_STATUS" ]; then
+    echo -e "${RED}Error: Redis Enterprise Cluster not found or not accessible.${NC}"
+    echo "Please make sure the Redis Enterprise Cluster is deployed and you have the correct permissions."
+    exit 1
+fi
 
-# if [ "$CLUSTER_STATUS" != "active" ]; then
-#     echo -e "${YELLOW}Warning: Redis Enterprise Cluster is not yet active (current state: $CLUSTER_STATUS).${NC}"
-#     echo "Please wait for the cluster to become active before running this script."
-#     exit 1
-# fi
+if [ "$CLUSTER_STATUS" != "Running" ]; then
+    echo -e "${YELLOW}Warning: Redis Enterprise Cluster is not yet active (current state: $CLUSTER_STATUS).${NC}"
+    echo "Please wait for the cluster to become active before running this script."
+    exit 1
+fi
 
 echo "Redis Enterprise Cluster is active."
 
@@ -115,63 +115,6 @@ for PROXY_ID in $PROXY_IDS; do
     # Format and display proxy details
     echo "$PROXY_DETAILS" | python3 -m json.tool
 done
-
-# Get proxy policies
-echo ""
-echo -e "${BOLD}Step 6: Getting proxy policies...${NC}"
-echo "Retrieving proxy policies from the REST API..."
-
-# Get all proxy policies
-PROXY_POLICIES=$(curl -s -k -u "$USERNAME:$PASSWORD" https://localhost:$API_PORT/v1/proxy_policies)
-
-# Check if the request was successful
-if [[ $PROXY_POLICIES == *"error"* ]]; then
-    echo -e "${RED}Error: Failed to get proxy policies.${NC}"
-    echo "Response: $PROXY_POLICIES"
-else
-    # Format and display proxy policies
-    echo ""
-    echo -e "${BOLD}Proxy Policies:${NC}"
-    echo "$PROXY_POLICIES" | python3 -m json.tool
-fi
-
-# Get databases with their endpoints
-echo ""
-echo -e "${BOLD}Step 7: Getting databases with their endpoints...${NC}"
-echo "Retrieving database information from the REST API..."
-
-# Get all databases
-DATABASES=$(curl -s -k -u "$USERNAME:$PASSWORD" https://localhost:$API_PORT/v1/bdbs)
-
-# Check if the request was successful
-if [[ $DATABASES == *"error"* ]]; then
-    echo -e "${RED}Error: Failed to get database information.${NC}"
-    echo "Response: $DATABASES"
-else
-    # Format and display database information
-    echo ""
-    echo -e "${BOLD}Database Information:${NC}"
-
-    # Extract and display relevant database information
-    echo "$DATABASES" | python3 -c "
-import sys, json
-databases = json.load(sys.stdin)
-for db in databases:
-    print(f\"Database: {db.get('name', 'N/A')} (ID: {db.get('uid', 'N/A')}):\")
-    print(f\"  Module: {db.get('module_list', ['N/A'])[0] if db.get('module_list') else 'N/A'}\")
-    print(f\"  Status: {db.get('status', 'N/A')}\")
-    print(f\"  Port: {db.get('port', 'N/A')}\")
-    print(f\"  Proxy Policy: {db.get('proxy_policy', 'N/A')}\")
-
-    endpoints = db.get('endpoints', [])
-    if endpoints:
-        print(\"  Endpoints:\")
-        for endpoint in endpoints:
-            print(f\"    - {endpoint.get('addr_type', 'N/A')}: {endpoint.get('dns_name', 'N/A')}:{endpoint.get('port', 'N/A')}\")
-
-    print()
-"
-fi
 
 echo ""
 echo -e "${BOLD}=== Proxy Information Retrieval Complete ===${NC}"

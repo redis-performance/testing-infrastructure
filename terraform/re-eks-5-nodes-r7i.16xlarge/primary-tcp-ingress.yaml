@@ -1,0 +1,26 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: primary-tcp-ingress
+  namespace: rec-large-scale
+  annotations:
+    haproxy.org/ssl-passthrough: "true"
+    haproxy.org/backend-proto: "tcp"
+    haproxy.org/timeout-tunnel: "3600s"
+    haproxy.org/config-backend: |
+      mode tcp
+      balance roundrobin
+      option tcp-check
+spec:
+  ingressClassName: haproxy
+  rules:
+  - host: primary-tcp.a245ddcf13c764d7aada41f71a8bbcad-220634774.us-east-2.elb.amazonaws.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: primary
+            port:
+              number: 11793

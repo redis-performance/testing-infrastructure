@@ -14,109 +14,127 @@ REC_NAME="rec-large-scale-5nodes"
 INGRESS_NAME="haproxy-ingress"
 INGRESS_CLASS="haproxy"
 
+
 echo "Configuring HAProxy Ingress Controller for Redis Enterprise Cluster..."
-
-# Add the HAProxy Ingress Helm repo
-echo "Adding HAProxy Ingress Helm repository..."
-helm repo add haproxy-ingress https://haproxy-ingress.github.io/charts
-helm repo update
-
-# Check if HAProxy Ingress is already installed
-if helm list -n $NAMESPACE | grep -q $INGRESS_NAME; then
-    echo "HAProxy Ingress is already installed. Upgrading..."
-    helm upgrade $INGRESS_NAME haproxy-ingress/haproxy-ingress \
-      --namespace $NAMESPACE \
-      --set controller.service.type=LoadBalancer
-else
-    echo "Installing HAProxy Ingress Controller..."
-    helm install $INGRESS_NAME haproxy-ingress/haproxy-ingress \
-      --namespace $NAMESPACE \
-      --create-namespace \
-      --set controller.service.type=LoadBalancer
-fi
-
-# Wait for the LoadBalancer to get an external IP
-echo "Waiting for LoadBalancer to be provisioned..."
-for i in {1..30}; do
-    if kubectl get svc -n $NAMESPACE $INGRESS_NAME -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' | grep -q "."; then
-        break
-    fi
-    echo "Waiting for LoadBalancer hostname... ($i/30)"
-    sleep 10
-done
-
-# Get the LoadBalancer hostname
-LB_HOSTNAME=$(kubectl get svc -n $NAMESPACE $INGRESS_NAME -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
-
-if [ -z "$LB_HOSTNAME" ]; then
-    echo "Error: Failed to get LoadBalancer hostname. Check the service status:"
-    kubectl get svc -n $NAMESPACE $INGRESS_NAME
-    exit 1
-fi
-
-echo "LoadBalancer hostname: $LB_HOSTNAME"
-echo $LB_HOSTNAME > haproxy_hostname.txt
-
-# Create Ingress resources for Redis Enterprise services
-echo "Creating Ingress resources for Redis Enterprise services..."
-
-# Create Ingress for Redis Enterprise UI
 cat <<EOF | kubectl apply -f -
 apiVersion: networking.k8s.io/v1
-kind: Ingress
+kind: IngressClass
 metadata:
-  name: rec-ui-ingress
-  namespace: $NAMESPACE
-  annotations:
-    haproxy.org/ssl-redirect: "true"
-    haproxy.org/ssl-passthrough: "true"
+  name: haproxy
 spec:
-  ingressClassName: $INGRESS_CLASS
-  rules:
-  - host: $LB_HOSTNAME
-    http:
-      paths:
-      - path: /
-        pathType: Prefix
-        backend:
-          service:
-            name: $REC_NAME-ui
-            port:
-              number: 8443
+  controller: haproxy-ingress.github.io/controller
 EOF
 
-# Create Ingress for Redis Enterprise API
+
 cat <<EOF | kubectl apply -f -
-apiVersion: networking.k8s.io/v1
-kind: Ingress
+apiVersion: v1
+kind: ConfigMap
 metadata:
-  name: rec-api-ingress
-  namespace: $NAMESPACE
-  annotations:
-    haproxy.org/ssl-redirect: "true"
-    haproxy.org/ssl-passthrough: "true"
-spec:
-  ingressClassName: $INGRESS_CLASS
-  rules:
-  - host: api.$LB_HOSTNAME
-    http:
-      paths:
-      - path: /
-        pathType: Prefix
-        backend:
-          service:
-            name: $REC_NAME
-            port:
-              number: 9443
+  name: haproxy-tcp-services
+  namespace: rec-large-scale
+data:
+  "11793": "rec-large-scale/primary:11793"
 EOF
 
-echo "HAProxy Ingress Controller and Ingress resources have been configured successfully."
-echo ""
-echo "You can access the Redis Enterprise Cluster UI at: https://$LB_HOSTNAME"
-echo "You can access the Redis Enterprise Cluster API at: https://api.$LB_HOSTNAME"
-echo ""
-echo "Note: It may take a few minutes for DNS to propagate. If you cannot access the services,"
-echo "you may need to add entries to your /etc/hosts file or wait for DNS propagation."
-echo ""
-echo "To check the status of the Ingress resources, run:"
-echo "kubectl get ingress -n $NAMESPACE"
+
+kubectl set env deployment/haproxy-ingress --namespace=rec-large-scale \
+  --containers=haproxy-ingress \
+  TCP_SERVICES_CONFIGMAP=rec-large-scale/haproxy-tcp-services
+
+
+kubectl patch service haproxy-ingress -n rec-large-scale --patch '{
+  "spec": {
+    "ports": [
+      {
+        "name": "http-80",
+        "port": 80,
+        "protocol": "TCP",
+        "targetPort": "http"
+      },
+      {
+        "name": "https-443",
+        "port": 443,
+        "protocol": "TCP",
+        "targetPort": "https"
+      },
+      {
+        "name": "redis-11793",
+        "port": 11793,
+        "protocol": "TCP",
+        "targetPort": 11793
+      }
+    ]
+  }
+}'
+
+cat <<EOF | kubectl apply -f -
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis-tcp-proxy
+  namespace: rec-large-scale
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redis-tcp-proxy
+  template:
+    metadata:
+      labels:
+        app: redis-tcp-proxy
+    spec:
+      containers:
+      - name: haproxy
+        image: haproxy:latest
+        ports:
+        - containerPort: 12000
+        volumeMounts:
+        - name: haproxy-config
+          mountPath: /usr/local/etc/haproxy/haproxy.cfg
+          subPath: haproxy.cfg
+      volumes:
+      - name: haproxy-config
+        configMap:
+          name: redis-tcp-proxy-config
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: redis-tcp-proxy-config
+  namespace: rec-large-scale
+data:
+  haproxy.cfg: |
+    global
+      daemon
+      maxconn 256
+
+    defaults
+      mode tcp
+      timeout connect 5s
+      timeout client 50s
+      timeout server 50s
+
+    frontend redis_frontend
+      bind *:12000
+      default_backend redis_backend
+
+    backend redis_backend
+      mode tcp
+      server redis primary.rec-large-scale.svc.cluster.local:11793 check ssl verify none
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-tcp-proxy
+  namespace: rec-large-scale
+spec:
+  type: LoadBalancer
+  ports:
+  - port: 12000
+    targetPort: 12000
+    protocol: TCP
+  selector:
+    app: redis-tcp-proxy
+EOF
+
+kubectl get service redis-tcp-proxy -n rec-large-scale

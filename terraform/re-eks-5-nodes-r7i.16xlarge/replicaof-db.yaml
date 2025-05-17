@@ -1,11 +1,14 @@
 apiVersion: app.redislabs.com/v1alpha1
 kind: RedisEnterpriseDatabase
 metadata:
-  name: primary # name this whatever you wish
+  name: replicaof # name this whatever you wish
 spec:
+  replicaSources:
+   - replicaSourceType: SECRET
+     replicaSourceName: primary-url # Use our custom secret for the primary database
   memorySize: 200GiB
   evictionPolicy: volatile-lru
-  databasePort: 11793
+  databasePort: 13000
   modulesList:
   - name: search
     config: "MT_MODE MT_MODE_FULL WORKER_THREADS 12"
@@ -14,9 +17,9 @@ spec:
   - name: timeseries
   redisEnterpriseCluster:
     name: rec-large-scale-5nodes # Change this to whatever you named the REC
-  replication: true
+  replication: false
   ossCluster: false            # Explicitly disable OSS Cluster API
-  shardCount: 10
-  persistence: aofEverySecond
+  shardCount: 40
+  persistence: disabled
   tlsMode: enabled             # MUST be enabled for HAProxy
   shardsPlacement: "sparse"

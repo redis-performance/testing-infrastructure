@@ -22,10 +22,29 @@ NC='\033[0m' # No Color
 echo -e "${BOLD}=== Redis Enterprise Cluster Proxy Policies Analysis ===${NC}"
 echo ""
 
+# Check if the Redis Enterprise Cluster is ready
+echo -e "${BOLD}Step 1: Checking if the Redis Enterprise Cluster is ready...${NC}"
+CLUSTER_STATUS=$(kubectl get rec $CLUSTER_NAME -n $NAMESPACE -o jsonpath='{.status.state}' 2>/dev/null)
+
+if [ -z "$CLUSTER_STATUS" ]; then
+    echo -e "${RED}Error: Redis Enterprise Cluster not found or not accessible.${NC}"
+    echo "Please make sure the Redis Enterprise Cluster is deployed and you have the correct permissions."
+    exit 1
+fi
+
+if [ "$CLUSTER_STATUS" != "active" ]; then
+    echo -e "${YELLOW}Warning: Redis Enterprise Cluster is not yet active (current state: $CLUSTER_STATUS).${NC}"
+    echo "Please wait for the cluster to become active before running this script."
+    exit 1
+fi
+
+echo "Redis Enterprise Cluster is active."
+
 # Get cluster credentials
-echo -e "${BOLD}Step 1: Getting cluster credentials...${NC}"
-USERNAME=$(kubectl get secret $CLUSTER_NAME -n $NAMESPACE -o jsonpath='{.data.username}' | base64 --decode)
-PASSWORD=$(kubectl get secret $CLUSTER_NAME -n $NAMESPACE -o jsonpath='{.data.password}' | base64 --decode)
+echo ""
+echo -e "${BOLD}Step 2: Getting cluster credentials...${NC}"
+USERNAME=$(kubectl get secret $CLUSTER_NAME -n $NAMESPACE -o jsonpath='{.data.username}' 2>/dev/null | base64 --decode)
+PASSWORD=$(kubectl get secret $CLUSTER_NAME -n $NAMESPACE -o jsonpath='{.data.password}' 2>/dev/null | base64 --decode)
 
 if [ -z "$USERNAME" ] || [ -z "$PASSWORD" ]; then
     echo -e "${RED}Error: Failed to get cluster credentials.${NC}"
@@ -84,13 +103,13 @@ for policy in policies:
     print(f\"Policy: {policy.get('name', 'N/A')} (ID: {policy.get('uid', 'N/A')}):\")
     print(f\"  Type: {policy.get('type', 'N/A')}\")
     print(f\"  Active: {'Yes' if policy.get('active', False) else 'No'}\")
-    
+
     rules = policy.get('rules', [])
     if rules:
         print(\"  Rules:\")
         for rule in rules:
             print(f\"    - {rule.get('name', 'N/A')}: {rule.get('value', 'N/A')}\")
-    
+
     print()
 ")
 
@@ -157,46 +176,46 @@ for DB in $DB_INFO; do
     DB_POLICY=$(echo $DB | cut -d':' -f3)
     DB_SSL=$(echo $DB | cut -d':' -f4)
     DB_TLS_MODE=$(echo $DB | cut -d':' -f5)
-    
+
     echo "Checking database: $DB_NAME (ID: $DB_ID)"
-    
+
     # Check if the database has a proxy policy
     if [ "$DB_POLICY" == "N/A" ] || [ -z "$DB_POLICY" ]; then
         echo -e "${RED}✗ Database $DB_NAME does not have a proxy policy.${NC}"
         continue
     fi
-    
+
     # Check if the proxy policy exists
     POLICY_EXISTS=false
     POLICY_TYPE=""
     POLICY_ACTIVE=false
-    
+
     for POLICY in $POLICY_INFO; do
         POLICY_ID=$(echo $POLICY | cut -d':' -f1)
         POLICY_NAME=$(echo $POLICY | cut -d':' -f2)
         POLICY_TYPE=$(echo $POLICY | cut -d':' -f3)
         POLICY_ACTIVE=$(echo $POLICY | cut -d':' -f4)
-        
+
         if [ "$POLICY_ID" == "$DB_POLICY" ]; then
             POLICY_EXISTS=true
             break
         fi
     done
-    
+
     if [ "$POLICY_EXISTS" == "true" ]; then
         echo -e "${GREEN}✓ Database $DB_NAME has a valid proxy policy: $POLICY_NAME (Type: $POLICY_TYPE).${NC}"
-        
+
         # Check if the policy is active
         if [ "$POLICY_ACTIVE" == "True" ]; then
             echo -e "${GREEN}✓ Proxy policy is active.${NC}"
         else
             echo -e "${RED}✗ Proxy policy is not active.${NC}"
         fi
-        
+
         # Check SSL configuration
         if [ "$DB_SSL" == "True" ]; then
             echo -e "${GREEN}✓ Database has SSL enabled.${NC}"
-            
+
             # Check TLS mode
             if [ "$DB_TLS_MODE" == "enabled" ]; then
                 echo -e "${GREEN}✓ TLS mode is enabled.${NC}"
@@ -209,7 +228,7 @@ for DB in $DB_INFO; do
     else
         echo -e "${RED}✗ Database $DB_NAME has an invalid proxy policy ID: $DB_POLICY.${NC}"
     fi
-    
+
     echo ""
 done
 

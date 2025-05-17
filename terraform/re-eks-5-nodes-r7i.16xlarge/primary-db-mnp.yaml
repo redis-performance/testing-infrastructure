@@ -15,8 +15,8 @@ spec:
   redisEnterpriseCluster:
     name: rec-large-scale-5nodes # Change this to whatever you named the REC
   replication: true
-  ossCluster: false            # Explicitly disable OSS Cluster API
   shardCount: 10
   persistence: aofEverySecond
   tlsMode: enabled             # MUST be enabled for HAProxy
   shardsPlacement: "sparse"
+  schedPolicy: "mnp"           # Memory-Node-Policy scheduling policy

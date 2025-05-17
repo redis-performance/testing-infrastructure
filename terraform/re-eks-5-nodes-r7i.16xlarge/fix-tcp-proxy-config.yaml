@@ -1,0 +1,25 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: redis-tcp-proxy-config
+  namespace: rec-large-scale
+data:
+  haproxy.cfg: |
+    global
+      daemon
+      maxconn 256
+
+    defaults
+      mode tcp
+      timeout connect 10s
+      timeout client 120s
+      timeout server 120s
+
+    frontend redis_frontend
+      bind *:12000
+      default_backend redis_backend
+
+    backend redis_backend
+      mode tcp
+      option tcp-check
+      server redis primary.rec-large-scale.svc.cluster.local:11793 check ssl verify none

@@ -24,10 +24,29 @@ NC='\033[0m' # No Color
 echo -e "${BOLD}=== HAProxy Configuration Analysis ===${NC}"
 echo ""
 
+# Check if the Redis Enterprise Cluster is ready
+echo -e "${BOLD}Step 1: Checking if the Redis Enterprise Cluster is ready...${NC}"
+CLUSTER_STATUS=$(kubectl get rec $CLUSTER_NAME -n $NAMESPACE -o jsonpath='{.status.state}' 2>/dev/null)
+
+if [ -z "$CLUSTER_STATUS" ]; then
+    echo -e "${RED}Error: Redis Enterprise Cluster not found or not accessible.${NC}"
+    echo "Please make sure the Redis Enterprise Cluster is deployed and you have the correct permissions."
+    exit 1
+fi
+
+if [ "$CLUSTER_STATUS" != "active" ]; then
+    echo -e "${YELLOW}Warning: Redis Enterprise Cluster is not yet active (current state: $CLUSTER_STATUS).${NC}"
+    echo "Please wait for the cluster to become active before running this script."
+    exit 1
+fi
+
+echo "Redis Enterprise Cluster is active."
+
 # Get cluster credentials
-echo -e "${BOLD}Step 1: Getting cluster credentials...${NC}"
-USERNAME=$(kubectl get secret $CLUSTER_NAME -n $NAMESPACE -o jsonpath='{.data.username}' | base64 --decode)
-PASSWORD=$(kubectl get secret $CLUSTER_NAME -n $NAMESPACE -o jsonpath='{.data.password}' | base64 --decode)
+echo ""
+echo -e "${BOLD}Step 2: Getting cluster credentials...${NC}"
+USERNAME=$(kubectl get secret $CLUSTER_NAME -n $NAMESPACE -o jsonpath='{.data.username}' 2>/dev/null | base64 --decode)
+PASSWORD=$(kubectl get secret $CLUSTER_NAME -n $NAMESPACE -o jsonpath='{.data.password}' 2>/dev/null | base64 --decode)
 
 if [ -z "$USERNAME" ] || [ -z "$PASSWORD" ]; then
     echo -e "${RED}Error: Failed to get cluster credentials.${NC}"
@@ -39,7 +58,7 @@ echo "Cluster credentials retrieved."
 
 # Set up port forwarding to the cluster API
 echo ""
-echo -e "${BOLD}Step 2: Setting up port forwarding to the cluster API...${NC}"
+echo -e "${BOLD}Step 3: Setting up port forwarding to the cluster API...${NC}"
 echo "Starting port forwarding in the background..."
 kubectl port-forward service/$CLUSTER_NAME -n $NAMESPACE $API_PORT:$API_PORT > /dev/null 2>&1 &
 PORT_FORWARD_PID=$!
@@ -63,7 +82,7 @@ echo "Connection to the cluster API established."
 
 # Get database information
 echo ""
-echo -e "${BOLD}Step 3: Getting database information...${NC}"
+echo -e "${BOLD}Step 4: Getting database information...${NC}"
 echo "Retrieving database information from the REST API..."
 
 # Get all databases
@@ -87,13 +106,13 @@ for db in databases:
     print(f\"  Port: {db.get('port', 'N/A')}\")
     print(f\"  Proxy Policy: {db.get('proxy_policy', 'N/A')}\")
     print(f\"  SSL: {'Enabled' if db.get('ssl', False) else 'Disabled'}\")
-    
+
     endpoints = db.get('endpoints', [])
     if endpoints:
         print(\"  Endpoints:\")
         for endpoint in endpoints:
             print(f\"    - {endpoint.get('addr_type', 'N/A')}: {endpoint.get('dns_name', 'N/A')}:{endpoint.get('port', 'N/A')}\")
-    
+
     print()
 ")
 
@@ -101,7 +120,7 @@ echo "$DB_INFO"
 
 # Get HAProxy configuration
 echo ""
-echo -e "${BOLD}Step 4: Getting HAProxy configuration...${NC}"
+echo -e "${BOLD}Step 5: Getting HAProxy configuration...${NC}"
 echo "Retrieving HAProxy configuration from Kubernetes..."
 
 # Get HAProxy pods
@@ -120,7 +139,7 @@ fi
 
 # Get Redis TCP proxy configuration
 echo ""
-echo -e "${BOLD}Step 5: Getting Redis TCP proxy configuration...${NC}"
+echo -e "${BOLD}Step 6: Getting Redis TCP proxy configuration...${NC}"
 echo "Retrieving Redis TCP proxy configuration from Kubernetes..."
 
 # Get Redis TCP proxy pods
@@ -139,7 +158,7 @@ fi
 
 # Compare database ports with HAProxy configuration
 echo ""
-echo -e "${BOLD}Step 6: Analyzing configuration...${NC}"
+echo -e "${BOLD}Step 7: Analyzing configuration...${NC}"
 echo "Comparing database ports with HAProxy configuration..."
 
 # Extract database ports
@@ -157,18 +176,18 @@ for DB_PORT_INFO in $DB_PORTS; do
     DB_NAME=$(echo $DB_PORT_INFO | cut -d':' -f1)
     DB_PORT=$(echo $DB_PORT_INFO | cut -d':' -f2)
     DB_SSL=$(echo $DB_PORT_INFO | cut -d':' -f3)
-    
+
     if [ "$DB_NAME" == "primary" ]; then
         echo "Checking configuration for database: $DB_NAME (Port: $DB_PORT, SSL: $DB_SSL)"
-        
+
         # Check if Redis TCP proxy is configured for this database
         if [ -n "$REDIS_TCP_PODS" ]; then
             for POD in $REDIS_TCP_PODS; do
                 TCP_PROXY_CONFIG=$(kubectl exec -n $NAMESPACE $POD -- cat /usr/local/etc/haproxy/haproxy.cfg)
-                
+
                 if [[ $TCP_PROXY_CONFIG == *"$DB_PORT"* ]]; then
                     echo -e "${GREEN}✓ Redis TCP proxy is correctly configured for database $DB_NAME.${NC}"
-                    
+
                     # Check SSL configuration
                     if [ "$DB_SSL" == "True" ] && [[ $TCP_PROXY_CONFIG == *"ssl verify none"* ]]; then
                         echo -e "${GREEN}✓ SSL configuration is correct.${NC}"
@@ -194,18 +213,18 @@ for DB_PORT_INFO in $DB_PORTS; do
     DB_NAME=$(echo $DB_PORT_INFO | cut -d':' -f1)
     DB_PORT=$(echo $DB_PORT_INFO | cut -d':' -f2)
     DB_SSL=$(echo $DB_PORT_INFO | cut -d':' -f3)
-    
+
     if [ "$DB_NAME" == "primary" ]; then
         echo "Checking configuration for database: $DB_NAME (Port: $DB_PORT, SSL: $DB_SSL)"
-        
+
         # Check if HAProxy Ingress is configured for this database
         if [ -n "$HAPROXY_PODS" ]; then
             for POD in $HAPROXY_PODS; do
                 HAPROXY_CONFIG=$(kubectl exec -n $NAMESPACE $POD -- cat /etc/haproxy/haproxy.cfg)
-                
+
                 if [[ $HAPROXY_CONFIG == *"$DB_PORT"* ]]; then
                     echo -e "${GREEN}✓ HAProxy Ingress is correctly configured for database $DB_NAME.${NC}"
-                    
+
                     # Check SSL configuration
                     if [ "$DB_SSL" == "True" ] && [[ $HAPROXY_CONFIG == *"ssl verify none"* ]]; then
                         echo -e "${GREEN}✓ SSL configuration is correct.${NC}"
