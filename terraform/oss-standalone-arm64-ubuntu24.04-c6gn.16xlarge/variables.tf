@@ -4,7 +4,7 @@
 
 variable "setup_name" {
   description = "setup name"
-  default     = "oss-standalone-arm64-ubuntu22.04-c6gn.16xlarge"
+  default     = "oss-standalone-arm64-ubuntu24.04-c6gn.16xlarge"
 }
 
 variable "github_actor" {
@@ -19,6 +19,11 @@ variable "github_repo" {
 
 variable "github_sha" {
   description = "The commit SHA that triggered the deployment."
+  default     = "N/A"
+}
+
+variable "environment" {
+  description = "	The cost tag."
   default     = "N/A"
 }
 
@@ -51,10 +56,10 @@ variable "region" {
   default = "us-east-2"
 }
 
-# (Ubuntu 22.04 LTS) ARM
+# (Ubuntu 24.04 LTS) ARM
 variable "instance_ami" {
-  description = "AMI for aws EC2 instance - us-east-2 Ubuntu 22.04"
-  default     = "ami-008f379ea5a8bd6ae"
+  description = "AMI for aws EC2 instance - us-east-2 Ubuntu 24.04"
+  default     = "ami-0ae6f07ad3a8ef182"
 }
 
 variable "instance_device_name" {
@@ -129,7 +134,7 @@ variable "instance_network_interface_plus_count" {
 
 variable "os" {
   description = "os"
-  default     = "ubuntu22.04"
+  default     = "ubuntu24.04"
 }
 
 variable "ssh_user" {
