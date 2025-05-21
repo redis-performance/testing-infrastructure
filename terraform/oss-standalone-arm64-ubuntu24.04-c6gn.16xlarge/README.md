@@ -40,7 +40,7 @@ The terraform script expects the following public private keys to be present on 
 within project repo
 
 ```bash
-cd terraform/oss-redis-standalone-small
+cd terraform/oss-standalone-arm64-ubuntu24.04-c6gn.16xlarge
 terraform plan
 terraform apply
 ```
