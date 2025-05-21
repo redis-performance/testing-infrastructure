@@ -1,0 +1,40 @@
+#cloud-config
+
+package_update: true
+package_upgrade: true
+packages:
+  - git
+  - build-essential
+  - autoconf
+  - automake
+  - libpcre3-dev
+  - libevent-dev
+  - pkg-config
+  - zlib1g-dev
+  - libssl-dev
+  - libtool
+  - ca-certificates
+  - wget
+
+# Create the memtier installation script
+write_files:
+  - path: /tmp/install_memtier.sh
+    permissions: "0755"
+    content: |
+      #!/bin/bash
+      set -e # exit immediately on error
+      # Clone memtier benchmark
+      cd /tmp
+      rm -rf memtier_benchmark
+      git clone https://github.com/RedisLabs/memtier_benchmark.git
+      cd memtier_benchmark
+      # Build and install
+      autoreconf -ivf
+      ./configure
+      make -j
+      sudo make install
+      echo "Memtier benchmark installed successfully"
+# Run the installation script
+runcmd:
+  - bash /tmp/install_memtier.sh
+  - echo "Cloud-init installation completed"
