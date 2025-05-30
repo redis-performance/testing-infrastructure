@@ -47,13 +47,12 @@ runcmd:
   - echo "Cloning DragonflyDB repository..."
   - cd /home/ubuntu
   - git clone --recursive https://github.com/dragonflydb/dragonfly
-  - chown -R ubuntu:ubuntu /home/ubuntu/dragonfly
 
   # Build DragonflyDB
   - echo "Building DragonflyDB (this may take a while)..."
   - cd /home/ubuntu/dragonfly
-  - sudo -u ubuntu ./helio/blaze.sh -release
-  - cd build-opt && sudo -u ubuntu ninja dragonfly
+  - ./helio/blaze.sh -release
+  - cd build-opt && ninja dragonfly
 
   # Log completion
   - echo "DragonflyDB installation completed at $(date)"
@@ -72,6 +71,9 @@ runcmd:
   - cd /home/ubuntu/redis
   - make distclean
   - make BUILD_TLS=yes -j
+
+  # Fix ownership of /home/ubuntu files to ubuntu
+  - chown -R ubuntu:ubuntu /home/ubuntu/
 
   # Log completion
   - echo "Redis installation completed at $(date)"
