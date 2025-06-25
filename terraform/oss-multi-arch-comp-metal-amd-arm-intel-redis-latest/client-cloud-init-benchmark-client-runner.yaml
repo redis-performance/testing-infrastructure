@@ -1,0 +1,20 @@
+#cloud-config
+
+package_update: true
+package_upgrade: true
+packages:
+  - python3-pip
+  - docker.io
+  - python3.12-venv
+
+# Run the installation script
+runcmd:
+  - [mkdir, /home/ubuntu/redis-benchmarks-specification-venv]
+  - [python3, -m, venv, /home/ubuntu/redis-benchmarks-specification-venv/]
+  - [
+      /home/ubuntu/redis-benchmarks-specification-venv/bin/pip,
+      install,
+      redis-benchmarks-specification,
+    ]
+  - [usermod, -aG, docker, ubuntu]
+  - [echo, "Cloud-init installation completed"]
