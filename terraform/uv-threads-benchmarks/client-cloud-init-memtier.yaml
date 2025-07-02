@@ -15,6 +15,7 @@ packages:
   - libtool
   - ca-certificates
   - wget
+  - zip
 
 # Create the memtier installation script
 write_files:
@@ -39,32 +40,7 @@ write_files:
 
       echo "Memtier benchmark installed successfully"
 
-  - path: /tmp/install_redisbench_admin.sh
-    permissions: "0755"
-    content: |
-      #!/bin/bash
-      sudo apt install python3
-      sudo apt install python3-pip -y
-      sudo apt install python3-venv -y
-      python3 -m venv venv
-      source venv/bin/activate
-
-      pip install redisbench-admin
-
-  - path: /tmp/clone_redisearch.sh
-    permissions: "0755"
-    content: |
-      #!/bin/bash
-
-      git clone https://github.com/RediSearch/RediSearch.git
-      git checkout joan-uv-threads
-
-      echo "Checkout branch successfully"
-
-
 # Run the installation script
 runcmd:
   - [bash, /tmp/install_memtier.sh]
-  - [bash, /tmp/install_benchadmin.sh]
-  - [bash, /tmp/clone_redisearch.sh]
   - [echo, "Cloud-init installation completed"]

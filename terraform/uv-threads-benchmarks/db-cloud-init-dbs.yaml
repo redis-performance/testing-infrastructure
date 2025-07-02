@@ -17,6 +17,7 @@ packages:
   - libtool
   - ca-certificates
   - wget
+  - zip
 
 # Create the Redis installation script
 write_files:
@@ -41,27 +42,12 @@ write_files:
 
       make distclean
       make BUILD_TLS=yes -j
+      sudo make install
 
       echo "Installed successfully"
 
-  - path: /tmp/install_redisearch.sh
-    permissions: "0755"
-    content: |
-      #!/bin/bash
-
-      git clone https://github.com/RediSearch/RediSearch.git
-      cd RediSearch
-      cd ./install
-      ./install_script.sh
-      ./install_rust.sh
-      source $HOME/.cargo/env
-      cd ..
-      ./build.sh
-
-      echo "Installed and compiled successfully"
 
 # Run the installation script
 runcmd:
   - [su, ubuntu, -c, "/tmp/install_redis.sh redis redis unstable ~/redis-unstable"]
-  - [su, ubuntu, -c, "/tmp/install_redisearch.sh"]
   - [echo, "Cloud-init installation completed"]
