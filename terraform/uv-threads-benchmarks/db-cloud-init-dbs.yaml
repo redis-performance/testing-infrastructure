@@ -18,7 +18,16 @@ packages:
   - ca-certificates
   - wget
   - zip
-
+# Parca agent configuration
+snap:
+  commands:
+    - [install, parca-agent, --classic]
+    - [
+        set,
+        parca-agent,
+        remote-store-bearer-token=XXX-YOUR-TOKEN-XXX,
+      ]
+    - [start, --enable, parca-agent]
 # Create the Redis installation script
 write_files:
   - path: /tmp/install_redis.sh

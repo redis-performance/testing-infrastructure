@@ -65,8 +65,8 @@ variable "server_instances_configs" {
   }))
   default = {
     "intel" = {
-      name          = "Intel m7i.16xlarge"
-      instance_type = "m7i.16xlarge"
+      name          = "Intel m7i.24xlarge"
+      instance_type = "m7i.24xlarge"
       ami           = "ami-04f167a56786e4b09" # Ubuntu 24.04 LTS x86_64
       arch_label    = "INTEL"
     }
