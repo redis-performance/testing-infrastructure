@@ -1,0 +1,79 @@
+#cloud-config
+
+# Update and upgrade packages
+package_update: true
+package_upgrade: true
+
+# Install required packages
+packages:
+  ### DragonflyDB dependencies
+  - ninja-build
+  - libunwind-dev
+  - libboost-context-dev
+  - libssl-dev
+  - autoconf-archive
+  - libtool
+  - cmake
+  - g++
+  - bison
+  - zlib1g-dev
+  - git
+  - make
+  - pkg-config
+
+  # Redis dependencies
+  - git
+  - dpkg-dev
+  - gcc
+  - g++
+  - libc6-dev
+  - libssl-dev
+  - make
+  - cmake
+  - clang
+  - automake
+  - autoconf
+  - libtool
+  - ca-certificates
+  - wget
+
+# Create directories
+runcmd:
+  ### DragonflyDB
+  # Log start time
+  - echo "Starting DragonflyDB installation at $(date)"
+
+  # Clone DragonflyDB repository
+  - echo "Cloning DragonflyDB repository..."
+  - cd /home/ubuntu
+  - git clone --recursive https://github.com/dragonflydb/dragonfly
+
+  # Build DragonflyDB
+  - echo "Building DragonflyDB (this may take a while)..."
+  - cd /home/ubuntu/dragonfly
+  - ./helio/blaze.sh -release
+  - cd build-opt && ninja dragonfly
+
+  # Log completion
+  - echo "DragonflyDB installation completed at $(date)"
+
+  ### Redis
+  # Log start time
+  - echo "Start Redis installation at $(date)"
+
+  # Clone Redis repository
+  - echo "Cloning Redis repository..."
+  - cd /home/ubuntu
+  - git clone https://github.com/redis/redis
+
+  # Build Redis
+  - echo "Building Redis (this may take a while)..."
+  - cd /home/ubuntu/redis
+  - make distclean
+  - make BUILD_TLS=yes -j
+
+  # Fix ownership of /home/ubuntu files to ubuntu
+  - chown -R ubuntu:ubuntu /home/ubuntu/
+
+  # Log completion
+  - echo "Redis installation completed at $(date)"
