@@ -1,0 +1,128 @@
+#cloud-config
+
+# Enable debug logging
+debug: true
+output: {all: '| tee -a /var/log/cloud-init-output.log'}
+
+package_update: true
+package_upgrade: true
+packages:
+  - git
+  - dpkg-dev
+  - gcc
+  - g++
+  - libc6-dev
+  - libssl-dev
+  - make
+  - cmake
+  - clang
+  - automake
+  - autoconf
+  - libtool
+  - ca-certificates
+  - wget
+  - python3-pip
+  - docker.io
+  - supervisor
+
+write_files:
+  - path: /etc/supervisor/conf.d/redis-benchmarks-spec-sc-coordinator.conf
+    permissions: "0644"
+    content: |
+      [program:redis-benchmarks-spec-sc-coordinator]
+      command = /usr/local/bin/redis-benchmarks-spec-sc-coordinator --platform-name ${platform_name} --event_stream_host ${event_stream_host} --event_stream_port ${event_stream_port} --event_stream_pass ${event_stream_pass} --event_stream_user ${event_stream_user} --datasink_push_results_redistimeseries --arch ${arch} --datasink_redistimeseries_host ${datasink_redistimeseries_host} --datasink_redistimeseries_port ${datasink_redistimeseries_port} --datasink_redistimeseries_pass ${datasink_redistimeseries_pass} --logname /var/opt/redis-benchmarks-spec-sc-coordinator-1.log
+      startsecs = 0
+      autorestart = true
+      startretries = 1
+
+  - path: /tmp/setup_benchmark_runner.sh
+    permissions: "0755"
+    content: |
+      #!/bin/bash
+      set -x  # Enable verbose output but don't exit on error immediately
+
+      echo "=== Setting up benchmark runner environment ==="
+      echo "Timestamp: $(date)"
+      echo "Python version: $(python3 --version)"
+      echo "Pip version: $(pip3 --version)"
+
+      # Upgrade pip (handle potential upgrade issues gracefully)
+      echo "=== Upgrading pip ==="
+      sudo pip3 install --upgrade pip --break-system-packages || {
+        echo "WARNING: pip upgrade failed, continuing with existing pip version"
+        echo "This is expected on Ubuntu 24.04 with system-managed pip"
+      }
+      echo "Current pip version: $(pip3 --version)"
+
+      echo "=== Installing pyopenssl ==="
+      sudo pip3 install pyopenssl --upgrade --break-system-packages
+
+      # Install redis-benchmarks-specification
+      echo "=== Installing redis-benchmarks-specification ==="
+      if sudo python3 -m pip install redis-benchmarks-specification --break-system-packages; then
+        echo "SUCCESS: redis-benchmarks-specification installed successfully"
+      else
+        echo "ERROR: Failed to install redis-benchmarks-specification"
+        echo "Attempting alternative installation method..."
+        sudo pip3 install redis-benchmarks-specification --break-system-packages || {
+          echo "CRITICAL ERROR: All installation methods failed"
+          exit 1
+        }
+      fi
+
+      echo "=== Checking installed packages ==="
+      pip3 list | grep redis-benchmarks-specification || echo "Package not found in pip list"
+
+      # Verify installation by checking if the coordinator binary exists
+      echo "=== Verifying binary installation ==="
+      if [ ! -f "/usr/local/bin/redis-benchmarks-spec-sc-coordinator" ]; then
+        echo "ERROR: redis-benchmarks-spec-sc-coordinator binary not found at /usr/local/bin/redis-benchmarks-spec-sc-coordinator"
+        echo "Listing /usr/local/bin/ contents:"
+        ls -la /usr/local/bin/ | grep redis || echo "No redis binaries found"
+        echo "Package installation failed!"
+        exit 1
+      fi
+
+      echo "Binary found! Checking permissions:"
+      ls -la /usr/local/bin/redis-benchmarks-spec-sc-coordinator
+
+      # Additional verification - check if the binary is executable and shows help
+      echo "=== Testing binary functionality ==="
+      if ! /usr/local/bin/redis-benchmarks-spec-sc-coordinator --help > /dev/null 2>&1; then
+        echo "ERROR: redis-benchmarks-spec-sc-coordinator binary is not working properly"
+        echo "Trying to run with verbose output:"
+        /usr/local/bin/redis-benchmarks-spec-sc-coordinator --help || true
+        echo "Package installation verification failed!"
+        exit 1
+      fi
+
+      echo "=== redis-benchmarks-specification package verified successfully ==="
+
+      # Create log directory
+      echo "=== Creating log directory ==="
+      sudo mkdir -p /var/opt
+      ls -la /var/opt
+
+      echo "=== Benchmark runner setup completed successfully ==="
+      echo "Final timestamp: $(date)"
+
+# Run the installation and setup commands
+runcmd:
+
+  # Setup benchmark runner
+  - [echo, "=== Starting benchmark runner setup ==="]
+  - [/tmp/setup_benchmark_runner.sh]
+  - [echo, "=== Benchmark runner setup completed ==="]
+
+  # Ensure supervisor picks up program and start it
+  - [echo, "=== Configuring supervisor ==="]
+  - [systemctl, enable, supervisor]
+  - [systemctl, restart, supervisor]
+  - [sleep, "5"]
+  - [echo, "=== Checking supervisor status ==="]
+  - [supervisorctl, status]
+
+  - [echo, "=== Cloud-init installation completed ==="]
+
+# Final message
+final_message: "The system is finally up, after $UPTIME seconds"
