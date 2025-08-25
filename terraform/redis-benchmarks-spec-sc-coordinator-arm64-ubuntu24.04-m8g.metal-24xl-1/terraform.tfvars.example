@@ -1,0 +1,22 @@
+# Example terraform.tfvars file for benchmark runner configuration
+# Copy this file to terraform.tfvars and fill in your actual values
+
+# Benchmark runner configuration
+platform_name = "bicx02"
+
+# Event stream configuration
+event_stream_host = "your-event-stream-host.com"
+event_stream_port = "6379"
+event_stream_user = "your-username"
+event_stream_pass = "your-password"
+
+# Data sink RedisTimeSeries configuration
+datasink_redistimeseries_host = "your-redistimeseries-host.com"
+datasink_redistimeseries_port = "6379"
+datasink_redistimeseries_pass = "your-redistimeseries-password"
+
+# Optional: Override default values
+# setup_name = "redis-benchmarks-spec-sc-coordinator-arm64-ubuntu22.04-m8g.metal-24xl-1"
+# github_actor = "your-github-username"
+# github_repo = "redis/redis"
+# timeout_secs = "3600"

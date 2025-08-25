@@ -1,0 +1,83 @@
+#cloud-config
+
+package_update: true
+package_upgrade: true
+packages:
+  - git
+  - dpkg-dev
+  - gcc
+  - g++
+  - libc6-dev
+  - libssl-dev
+  - make
+  - cmake
+  - clang
+  - automake
+  - autoconf
+  - libtool
+  - ca-certificates
+  - wget
+  - python3-pip
+  - docker.io
+  - supervisor
+
+write_files:
+  - path: /etc/supervisor/conf.d/redis-benchmarks-spec-sc-coordinator.conf
+    permissions: "0644"
+    content: |
+      [program:redis-benchmarks-spec-sc-coordinator]
+      command = /usr/local/bin/redis-benchmarks-spec-sc-coordinator --platform-name ${platform_name} --event_stream_host ${event_stream_host} --event_stream_port ${event_stream_port} --event_stream_pass ${event_stream_pass} --event_stream_user ${event_stream_user} --datasink_push_results_redistimeseries --arch ${arch} --datasink_redistimeseries_host ${datasink_redistimeseries_host} --datasink_redistimeseries_port ${datasink_redistimeseries_port} --datasink_redistimeseries_pass ${datasink_redistimeseries_pass} --logname /var/opt/redis-benchmarks-spec-sc-coordinator-1.log
+      startsecs = 0
+      autorestart = true
+      startretries = 1
+
+  - path: /tmp/setup_benchmark_runner.sh
+    permissions: "0755"
+    content: |
+      #!/bin/bash
+      set -e
+
+      echo "Setting up benchmark runner environment..."
+
+      # Upgrade pip
+      sudo pip3 install --upgrade pip  --break-system-packages
+      sudo pip3 install pyopenssl --upgrade  --break-system-packages
+
+      # Install redis-benchmarks-specification
+      sudo python3 -m pip install redis-benchmarks-specification --break-system-packages
+
+      # Verify installation by checking if the coordinator binary exists
+      if [ ! -f "/usr/local/bin/redis-benchmarks-spec-sc-coordinator" ]; then
+        echo "ERROR: redis-benchmarks-spec-sc-coordinator binary not found at /usr/local/bin/redis-benchmarks-spec-sc-coordinator"
+        echo "Package installation failed!"
+        exit 1
+      fi
+
+      # Additional verification - check if the binary is executable and shows help
+      if ! /usr/local/bin/redis-benchmarks-spec-sc-coordinator --help > /dev/null 2>&1; then
+        echo "ERROR: redis-benchmarks-spec-sc-coordinator binary is not working properly"
+        echo "Package installation verification failed!"
+        exit 1
+      fi
+
+      echo "redis-benchmarks-specification package verified successfully"
+
+      # Create log directory
+      sudo mkdir -p /var/opt
+
+      echo "Benchmark runner setup completed"
+
+# Run the installation and setup commands
+runcmd:
+  
+  # Setup benchmark runner
+  - [/tmp/setup_benchmark_runner.sh]
+
+  # Ensure supervisor picks up program and start it
+  - [systemctl, enable, supervisor]
+  - [systemctl, restart, supervisor]
+  
+  - [echo, "Cloud-init installation completed"]
+
+# Final message
+final_message: "The system is finally up, after $UPTIME seconds"
