@@ -4,7 +4,7 @@
 
 variable "setup_name" {
   description = "setup name"
-  default     = "oss-redisearch-m5"
+  default     = "oss-redisearch-marco"
 }
 variable "github_actor" {
   description = "The name of the person or app that initiated the deployment."
@@ -156,7 +156,7 @@ variable "server_instance_count" {
 
 variable "server_instance_cpu_core_count" {
   description = "CPU core count for aws EC2 instance"
-  default     = 64
+  default     = 32
 }
 
 variable "server_instance_cpu_threads_per_core" {
