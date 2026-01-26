@@ -51,7 +51,7 @@ variable "private_key" {
 
 variable "key_name" {
   description = "key name"
-  default     = "perf-us-east-2"
+  default     = "perf-cto-us-east-2"
 }
 
 variable "region" {
@@ -90,13 +90,13 @@ variable "redis_module" {
 
 variable "instance_volume_size" {
   description = "EC2 instance volume_size"
-  default     = "1024"
+  default     = "256"
 }
 
 
 variable "client_instance_volume_size" {
   description = "EC2 instance volume_size"
-  default     = "256"
+  default     = "128"
 }
 
 variable "client_instance_volume_type" {
