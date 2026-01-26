@@ -51,7 +51,7 @@ variable "private_key" {
 
 variable "key_name" {
   description = "key name"
-  default     = "perf-ci"
+  default     = "perf-us-east-2"
 }
 
 variable "region" {
