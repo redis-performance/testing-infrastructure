@@ -4,7 +4,7 @@
 
 variable "setup_name" {
   description = "setup name"
-  default     = "oss-standalone-redistimeseries-m5"
+  default     = "oss-modules-m5"
 }
 variable "github_actor" {
   description = "The name of the person or app that initiated the deployment."
@@ -23,7 +23,7 @@ variable "triggering_env" {
 
 variable "environment" {
   description = "	The cost tag."
-  default     = "RedisTimeSeries"
+  default     = "modules"
 }
 
 variable "github_org" {
@@ -51,11 +51,6 @@ variable "private_key" {
   default     = "/tmp/benchmarks.redislabs.pem"
 }
 
-variable "public_key" {
-  description = "public key"
-  default     = "~/.ssh/perf-ci.pub"
-}
-
 variable "key_name" {
   description = "key name"
   default     = "perf-cto-us-east-2"
@@ -65,11 +60,11 @@ variable "region" {
   default = "us-east-2"
 }
 
-# (Ubuntu 22.04)
-# https://us-east-2.console.aws.amazon.com/ec2/home?region=us-east-2#ImageDetails:imageId=ami-0cda50c2e20879afb
+# (Ubuntu 24.04, memtier 2.1.4 and redis 8.4 from Nov 5th 2025)
+# https://us-east-2.console.aws.amazon.com/ec2/home?region=us-east-2#ImageDetails:imageId=ami-09f0d91e70e7a2515
 variable "instance_ami" {
-  description = "AMI for aws EC2 instance - us-east-2 Ubuntu 22.04 - perf-base-image-ubuntu22.04-m6i.8xlarge-20250306-0220"
-  default     = "ami-0cda50c2e20879afb"
+  description = "AMI for aws EC2 instance - us-east-2 Ubuntu 24.04 - perf-base-image-ubuntu24.04-m6i.8xlarge-20250325-0937"
+  default     = "ami-09f0d91e70e7a2515"
 }
 
 variable "instance_device_name" {
@@ -77,15 +72,6 @@ variable "instance_device_name" {
   default     = "/dev/sda1"
 }
 
-variable "redis_module" {
-  description = "redis_module"
-  default     = "N/A"
-}
-
-variable "instance_volume_size" {
-  description = "EC2 instance volume_size"
-  default     = "256"
-}
 
 variable "instance_volume_type" {
   description = "EC2 instance volume_type"
@@ -96,6 +82,28 @@ variable "instance_volume_iops" {
   description = "EC2 instance volume_iops"
   default     = "100"
 }
+
+variable "redis_module" {
+  description = "redis_module"
+  default     = "N/A"
+}
+
+variable "instance_volume_size" {
+  description = "EC2 instance volume_size"
+  default     = "1024"
+}
+
+
+variable "client_instance_volume_size" {
+  description = "EC2 instance volume_size"
+  default     = "256"
+}
+
+variable "client_instance_volume_type" {
+  description = "EC2 instance volume_type"
+  default     = "gp3"
+}
+
 
 variable "instance_volume_encrypted" {
   description = "EC2 instance instance_volume_encrypted"
@@ -124,7 +132,7 @@ variable "instance_network_interface_plus_count" {
 
 variable "os" {
   description = "os"
-  default     = "ubuntu22.04"
+  default     = "ubuntu20.04"
 }
 
 variable "ssh_user" {
@@ -138,8 +146,9 @@ variable "ssh_user" {
 # m5.8xlarge 	32 VCPUs 	128 GB MEM
 variable "server_instance_type" {
   description = "type for aws EC2 instance"
-  default     = "m5.8xlarge"
+  default     = "m6i.8xlarge"
 }
+
 
 variable "server_instance_count" {
   default = "1"
@@ -150,6 +159,10 @@ variable "server_instance_cpu_core_count" {
   default     = 16
 }
 
+variable "server_instance_cpu_threads_per_core" {
+  description = "CPU threads per CORE"
+  default     = 1
+}
 
 ################################################################################
 # Specific Client machine variables
@@ -158,7 +171,7 @@ variable "server_instance_cpu_core_count" {
 
 variable "client_instance_type" {
   description = "type for aws EC2 instance"
-  default     = "c5.4xlarge"
+  default     = "m6i.4xlarge"
 }
 
 variable "client_instance_count" {
