@@ -104,8 +104,9 @@ echo "UUID=$drive_uuid $FLASH_DIR ext4 noatime,rw,relatime,user_xattr,barrier=0,
 log "Mounting $FLASH_DIR..."
 mount "$FLASH_DIR"
 
-# Set permissions
-chmod 755 "$FLASH_DIR"
+# Set permissions and ownership
+chmod 777 "$FLASH_DIR"
+log "Set permissions to 777 for $FLASH_DIR"
 
 log "Flash setup complete. Mounted at $FLASH_DIR"
 df -h "$FLASH_DIR"
