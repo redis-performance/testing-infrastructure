@@ -1,19 +1,14 @@
-resource "aws_instance" "server" {
-  count         = var.server_instance_count
-  ami           = var.instance_ami
-  instance_type = var.server_instance_type
 
+resource "aws_instance" "client" {
+  count                       = var.client_instance_count
+  ami                         = var.instance_ami
+  instance_type               = var.client_instance_type
   subnet_id                   = data.terraform_remote_state.shared_resources.outputs.subnet_public_id
   vpc_security_group_ids      = ["${data.terraform_remote_state.shared_resources.outputs.performance_cto_sg_id}"]
   key_name                    = var.key_name
   associate_public_ip_address = "true"
   #placement_group             = data.terraform_remote_state.shared_resources.outputs.perf_cto_pg_name
   availability_zone           = "us-east-2a"
-
-  cpu_options {
-    core_count       = var.server_instance_cpu_core_count
-    threads_per_core = var.server_instance_cpu_threads_per_core
-  }
 
   root_block_device {
     volume_size           = var.instance_volume_size
@@ -25,7 +20,7 @@ resource "aws_instance" "server" {
   volume_tags = {
     Environment    = "${var.environment}"
     Project        = "${var.environment}"
-    Name           = "ebs_block_device-${var.setup_name}-DB-${count.index + 1}"
+    Name           = "ebs_block_device-${var.setup_name}-CLIENT-${count.index + 1}"
     setup          = "${var.setup_name}"
     triggering_env = "${var.triggering_env}"
     github_actor   = "${var.github_actor}"
@@ -38,7 +33,7 @@ resource "aws_instance" "server" {
   tags = {
     Environment    = "${var.environment}"
     Project        = "${var.environment}"
-    Name           = "${var.setup_name}-DB-${count.index + 1}"
+    Name           = "${var.setup_name}-CLIENT-${count.index + 1}"
     setup          = "${var.setup_name}"
     triggering_env = "${var.triggering_env}"
     github_actor   = "${var.github_actor}"
@@ -49,11 +44,12 @@ resource "aws_instance" "server" {
   }
 
   ################################################################################
-  # Polar Signals Parca agent configuration (optional)
+  # This will ensure we wait here until the instance is ready to receive the ssh connection 
   ################################################################################
-  user_data = var.enable_parca_agent ? templatefile("${path.module}/cloud-init-parca-agent.yaml", {
-    parca_agent_token = var.parca_agent_token
-  }) : null
+  # user_data = <<-EOF
+  #   #!/bin/bash
+  #   echo "Instance is ready" > /var/log/instance_ready.log
+  # EOF
 
   ################################################################################
   # Deployment related
