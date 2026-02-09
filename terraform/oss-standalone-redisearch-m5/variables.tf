@@ -167,7 +167,7 @@ variable "server_instance_cpu_threads_per_core" {
 ################################################################################
 # Specific Client machine variables
 ################################################################################
-# c5.4xlarge 	16 VCPUs 
+# c5.4xlarge 	16 VCPUs
 
 variable "client_instance_type" {
   description = "type for aws EC2 instance"
@@ -176,4 +176,20 @@ variable "client_instance_type" {
 
 variable "client_instance_count" {
   default = "1"
+}
+
+################################################################################
+# Polar Signals / Parca agent configuration
+################################################################################
+variable "enable_parca_agent" {
+  description = "Enable Polar Signals Parca agent installation on DB server"
+  type        = bool
+  default     = false
+}
+
+variable "parca_agent_token" {
+  description = "Bearer token for Polar Signals remote store (required if enable_parca_agent is true)"
+  type        = string
+  default     = ""
+  sensitive   = true
 }

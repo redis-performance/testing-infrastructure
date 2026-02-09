@@ -49,12 +49,11 @@ resource "aws_instance" "server" {
   }
 
   ################################################################################
-  # This will ensure we wait here until the instance is ready to receive the ssh connection 
+  # Polar Signals Parca agent configuration (optional)
   ################################################################################
-  # user_data = <<-EOF
-  #   #!/bin/bash
-  #   echo "Instance is ready" > /var/log/instance_ready.log
-  # EOF
+  user_data = var.enable_parca_agent ? templatefile("${path.module}/cloud-init-parca-agent.yaml", {
+    parca_agent_token = var.parca_agent_token
+  }) : null
 
   ################################################################################
   # Deployment related
