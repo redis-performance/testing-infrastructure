@@ -1,0 +1,13 @@
+#cloud-config
+
+# Parca agent configuration
+snap:
+  commands:
+    - [install, parca-agent, --classic]
+    - [
+        set,
+        parca-agent,
+        remote-store-bearer-token=${parca_agent_token},
+      ]
+    - [start, --enable, parca-agent]
+
