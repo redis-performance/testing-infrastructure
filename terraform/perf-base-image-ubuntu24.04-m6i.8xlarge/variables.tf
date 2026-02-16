@@ -62,10 +62,10 @@ variable "region" {
 }
 
 # (Ubuntu 24.04)
-#	Jammy Jellyfish	24.04 LTS	amd64	hvm:ebs-ssd	20250305	ami-04f167a56786e4b09	hvm
+#	us-east-2	Noble Numbat	24.04 LTS	amd64	hvm:ebs-ssd-gp3	20260203	ami-025b3ba8491a26d32	hvm
 variable "instance_ami" {
   description = "AMI for aws EC2 instance - us-east-2 Ubuntu 24.04 LTS 20250305"
-  default     = "ami-04f167a56786e4b09"
+  default     = "ami-025b3ba8491a26d32"
 }
 
 
@@ -81,7 +81,7 @@ variable "redis_module" {
 
 variable "instance_volume_size" {
   description = "EC2 instance volume_size"
-  default     = "256"
+  default     = "64"
 }
 
 variable "instance_volume_type" {
@@ -92,12 +92,12 @@ variable "instance_volume_type" {
 
 variable "instance_volume_iops" {
   description = "EC2 instance volume_iops"
-  default     = "512"
+  default     = "3000"
 }
 
 variable "client_instance_volume_size" {
   description = "EC2 instance volume_size"
-  default     = "128"
+  default     = "32"
 }
 
 variable "client_instance_volume_type" {

@@ -60,11 +60,11 @@ variable "region" {
   default = "us-east-2"
 }
 
-# (Ubuntu 24.04, memtier 2.1.4 and redis 8.4 from Nov 5th 2025)
-# https://us-east-2.console.aws.amazon.com/ec2/home?region=us-east-2#ImageDetails:imageId=ami-09f0d91e70e7a2515
+# (Ubuntu 24.04, memtier_benchmark v=255.255.255 sha=1e7877b5:0 and redis Redis server v=8.6.0 sha=006e6a6a:0)
+# https://us-east-2.console.aws.amazon.com/ec2/home?region=us-east-2#ImageDetails:imageId=ami-0ea6aaf5946625af3
 variable "instance_ami" {
-  description = "AMI for aws EC2 instance - us-east-2 Ubuntu 24.04 - perf-base-image-ubuntu24.04-m6i.8xlarge-20250325-0937"
-  default     = "ami-09f0d91e70e7a2515"
+  description = "AMI for aws EC2 instance - us-east-2 Ubuntu 24.04 - perf-base-image-ubuntu24.04-m6i.8xlarge-20260216-1253"
+  default     = "ami-0ea6aaf5946625af3"
 }
 
 variable "instance_device_name" {
@@ -90,13 +90,13 @@ variable "redis_module" {
 
 variable "instance_volume_size" {
   description = "EC2 instance volume_size"
-  default     = "1024"
+  default     = "128"
 }
 
 
 variable "client_instance_volume_size" {
   description = "EC2 instance volume_size"
-  default     = "256"
+  default     = "64"
 }
 
 variable "client_instance_volume_type" {

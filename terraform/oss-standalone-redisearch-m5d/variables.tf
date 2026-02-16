@@ -58,14 +58,12 @@ variable "region" {
   default = "us-east-2"
 }
 
-# (Ubuntu 20.04)
-# ubuntu-bionic-20.04-amd64-server
+# (Ubuntu 24.04, memtier_benchmark v=255.255.255 sha=1e7877b5:0 and redis Redis server v=8.6.0 sha=006e6a6a:0)
+# https://us-east-2.console.aws.amazon.com/ec2/home?region=us-east-2#ImageDetails:imageId=ami-0ea6aaf5946625af3
 variable "instance_ami" {
-  description = "AMI for aws EC2 instance - us-east-2 Ubuntu 20.04 - perf-cto-base-image-ubuntu20.04-redis-7.1.241"
-  default     = "ami-078c8a93768628849"
+  description = "AMI for aws EC2 instance - us-east-2 Ubuntu 24.04 - perf-base-image-ubuntu24.04-m6i.8xlarge-20260216-1253"
+  default     = "ami-0ea6aaf5946625af3"
 }
-
-# ami-078c8a93768628849
 
 variable "instance_device_name" {
   description = "EC2 instance device name"
@@ -90,13 +88,13 @@ variable "redis_module" {
 
 variable "instance_volume_size" {
   description = "EC2 instance volume_size"
-  default     = "256"
+  default     = "128"
 }
 
 
 variable "client_instance_volume_size" {
   description = "EC2 instance volume_size"
-  default     = "128"
+  default     = "64"
 }
 
 variable "client_instance_volume_type" {
