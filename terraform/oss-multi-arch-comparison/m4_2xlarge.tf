@@ -27,6 +27,7 @@ resource "aws_instance" "m4_2xlarge" {
     github_org     = "${var.github_org}"
     github_repo    = "${var.github_repo}"
     github_sha     = "${var.github_sha}"
+team     = "performance a&o"
     timeout_secs   = "${var.timeout_secs}"
   }
 
@@ -39,5 +40,6 @@ resource "aws_instance" "m4_2xlarge" {
     github_org     = "${var.github_org}"
     github_repo    = "${var.github_repo}"
     github_sha     = "${var.github_sha}"
+team     = "performance a&o"
   }
 }
