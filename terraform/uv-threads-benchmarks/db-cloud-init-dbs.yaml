@@ -1,0 +1,92 @@
+#cloud-config
+
+package_update: true
+package_upgrade: true
+packages:
+  - git
+  - dpkg-dev
+  - gcc
+  - g++
+  - libc6-dev
+  - libssl-dev
+  - make
+  - cmake
+  - clang
+  - automake
+  - autoconf
+  - libtool
+  - ca-certificates
+  - wget
+  - zip
+# Parca agent configuration
+snap:
+  commands:
+    - [install, parca-agent, --classic]
+    - [
+        set,
+        parca-agent,
+        remote-store-bearer-token=XXX-YOUR-TOKEN-XXX,
+      ]
+    - [start, --enable, parca-agent]
+# Create the Redis installation script
+write_files:
+  - path: /tmp/install_redis.sh
+    permissions: "0755"
+    content: |
+      #!/bin/bash
+
+      set -e # exit immediately on error
+
+      GH_ORG=${1:-"redis"}
+      GH_REPO=${2:-"redis"}
+      COMMIT=${3:-"HEAD"}
+      FOLDER=${4:-${GH_REPO}}
+
+      echo "Installing ${GH_ORG}/${GH_REPO} at commit ${COMMIT} in folder ${FOLDER}"
+      rm -rf ${FOLDER}
+      git clone https://github.com/${GH_ORG}/${GH_REPO} ${FOLDER}
+
+      cd ${FOLDER}
+      git checkout ${COMMIT}
+
+      make distclean
+      make BUILD_TLS=yes -j
+      sudo make install
+
+      echo "Installed successfully"
+
+  - path: /tmp/compile_redisearch.sh
+    permissions: "0755"
+    content: |
+      #!/bin/bash
+
+      set -e # exit immediately on error
+
+      GH_ORG=${1:-"RediSearch"}
+      GH_REPO=${2:-"RediSearch"}
+      COMMIT=${3:-"HEAD"}
+      FOLDER=${4:-${GH_REPO}}
+
+      echo "Installing ${GH_ORG}/${GH_REPO} at commit ${COMMIT} in folder ${FOLDER}"
+      rm -rf ${FOLDER}
+      git clone https://github.com/${GH_ORG}/${GH_REPO} ${FOLDER}
+
+      cd ${FOLDER}
+      git checkout ${COMMIT}
+      git submodule update --init --recursive
+
+      cd .install/
+      sudo ./install_script.sh
+      ./install_rust.sh
+      source $HOME/.cargo/env
+      cd ..
+      ./build.sh
+
+      echo "Compiled successfully"
+
+
+# Run the installation script
+runcmd:
+  - [su, ubuntu, -c, "/tmp/install_redis.sh redis redis unstable ~/redis-unstable"]
+  - [su, ubuntu, -c, "/tmp/compile_redisearch.sh RediSearch RediSearch master ~/RediSearch"]
+  - [echo, "Cloud-init installation completed"]
