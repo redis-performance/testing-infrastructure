@@ -60,15 +60,15 @@ variable "region" {
   default = "us-east-2"
 }
 
-# TODO: rebuild perf-base-image-ubuntu24.04-aarch64-m7g.8xlarge to match the
-# x86 AMI build date (~2026-02-16) so memtier + bundled redis-server versions
-# align across archs. Current ARM AMI below is from 2025-03-19 and ships an
-# older memtier (2.1.4 vs x86's v=255.255.255 sha=1e7877b5) and older redis
-# (unstable snapshot vs x86's 8.6.0). See the install-script alignment in
-# perf-base-image-ubuntu24.04-aarch64-m7g.8xlarge/ before rebuilding.
+# (Ubuntu 24.04 aarch64, memtier_benchmark v=255.255.255 sha=2f74d611:0 and
+# redis Redis server v=8.6.2 sha=a176d122:0 -- aligned with the x86 side so
+# a delta between this setup and oss-standalone-redisearch-m7 reflects arch,
+# not binary versions. Built from the updated install scripts in
+# perf-base-image-ubuntu24.04-aarch64-m7g.8xlarge/.)
+# https://us-east-2.console.aws.amazon.com/ec2/home?region=us-east-2#ImageDetails:imageId=ami-07b2bd887269522a3
 variable "instance_ami" {
-  description = "AMI for aws EC2 instance - us-east-2 Ubuntu 24.04 aarch64 - perf-base-image-ubuntu24.04-aarch64-m7g.8xlarge-20250319-1137"
-  default     = "ami-085a6d2c9ae2c0142"
+  description = "AMI for aws EC2 instance - us-east-2 Ubuntu 24.04 aarch64 - perf-base-image-ubuntu24.04-aarch64-m7g.8xlarge-20260422-0313"
+  default     = "ami-07b2bd887269522a3"
 }
 
 variable "instance_device_name" {
