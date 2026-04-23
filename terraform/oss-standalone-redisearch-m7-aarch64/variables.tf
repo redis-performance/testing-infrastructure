@@ -94,13 +94,17 @@ variable "redis_module" {
 
 variable "instance_volume_size" {
   description = "EC2 instance volume_size"
-  default     = "128"
+  # The aarch64 perf base image AMI (ami-07b2bd887269522a3) has a root
+  # snapshot >= 256GB, so requesting anything smaller makes RunInstances
+  # fail with InvalidBlockDeviceMapping. Keep >= 256 until we rebuild a
+  # smaller AMI.
+  default     = "256"
 }
 
 
 variable "client_instance_volume_size" {
   description = "EC2 instance volume_size"
-  default     = "64"
+  default     = "256"
 }
 
 variable "client_instance_volume_type" {
