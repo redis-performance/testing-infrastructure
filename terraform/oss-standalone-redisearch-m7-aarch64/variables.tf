@@ -199,3 +199,27 @@ variable "parca_agent_token" {
   default     = ""
   sensitive   = true
 }
+
+variable "parca_agent_project_id" {
+  description = <<-EOT
+    Polar Signals project id. Required when parca_agent_token is a
+    `psc_v1_<secret>_<serviceAccountId>` (no project binding in the
+    token) -- passed to parca-agent as `--remote-store-grpc-headers=projectID=<id>`
+    so the server can route writes to the right project. Leave empty
+    when parca_agent_token is a JWT (`eyJ...`) with `projectId` already
+    embedded in its claims.
+  EOT
+  type        = string
+  default     = ""
+}
+
+variable "parca_agent_snap_channel" {
+  description = <<-EOT
+    Snap channel for parca-agent. v0.46.0 (stable) does not honor the
+    projectID gRPC header with `psc_v1_` tokens; use `edge` (v0.47.1+)
+    for that workflow. Safe to leave as `stable` when using a JWT token
+    with the project id embedded.
+  EOT
+  type        = string
+  default     = "stable"
+}

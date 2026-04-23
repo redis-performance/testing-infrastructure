@@ -42,13 +42,31 @@ write_files:
           action: replace
 
 # Parca agent install + wire the config.
+#
+# Channel:
+#   `stable` -> v0.46.0, works with JWT tokens that embed `projectId`.
+#   `edge`   -> v0.47.1+, required when the token is `psc_v1_<secret>_<id>`
+#              (no project binding in the token -- v0.46.0 does not honor
+#              the projectID gRPC header in that case).
+#
+# GRPC headers:
+#   When `parca_agent_project_id` is set, parca-agent is told to route writes
+#   to that project via `--remote-store-grpc-headers=projectID=<id>` (this is
+#   exactly how Polar Signals' own k8s `manifests.yaml` wires the DaemonSet).
+#   Leave the project id empty when using a JWT token that already carries
+#   the project id in its claims.
 snap:
   commands:
-    - [install, parca-agent, --classic]
+    - [install, parca-agent, --classic, --channel=${parca_agent_snap_channel}]
     - [set, parca-agent, config-path=/etc/parca-agent.yml]
     - [
         set,
         parca-agent,
         remote-store-bearer-token=${parca_agent_token},
+      ]
+    - [
+        set,
+        parca-agent,
+        remote-store-grpc-headers=projectID=${parca_agent_project_id},
       ]
     - [start, --enable, parca-agent]
