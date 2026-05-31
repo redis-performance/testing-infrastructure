@@ -54,7 +54,9 @@ team     = "performance a&o"
   # Polar Signals Parca agent configuration (optional)
   ################################################################################
   user_data = var.enable_parca_agent ? templatefile("${path.module}/cloud-init-parca-agent.yaml", {
-    parca_agent_token = var.parca_agent_token
+    parca_agent_token        = var.parca_agent_token
+    parca_agent_project_id   = var.parca_agent_project_id
+    parca_agent_snap_channel = var.parca_agent_snap_channel
   }) : null
 
   ################################################################################
