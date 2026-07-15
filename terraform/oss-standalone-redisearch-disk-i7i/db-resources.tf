@@ -149,3 +149,45 @@ resource "null_resource" "parca_agent_setup" {
     ]
   }
 }
+
+################################################################################
+# Optional dataset placement via remote-exec (runs after flash_setup, before
+# the benchmark runner starts redis). Used e.g. for prebuilt disk-index trees
+# (BigRedis/SpeedB datadir + restart.rdb) that redis cold-starts from.
+################################################################################
+resource "null_resource" "dataset_placement" {
+  count = var.dataset_tarball_url != "" ? var.server_instance_count : 0
+
+  depends_on = [null_resource.flash_setup]
+
+  triggers = {
+    dataset_url = var.dataset_tarball_url
+    instance_id = aws_instance.server[count.index].id
+  }
+
+  connection {
+    type        = "ssh"
+    user        = var.ssh_user
+    private_key = file(var.private_key)
+    host        = aws_instance.server[count.index].public_ip
+    timeout     = "10m"
+  }
+
+  provisioner "remote-exec" {
+    inline = [
+      "set -e",
+      "echo '=== Dataset placement: ${var.dataset_tarball_url} ==='",
+      "mkdir -p ${var.dataset_extract_dir}",
+      "cd ${var.dataset_extract_dir}",
+      "curl -fsSL --retry 3 -o dataset.tar '${var.dataset_tarball_url}'",
+      "if [ -n '${var.dataset_tarball_sha256}' ]; then echo '${var.dataset_tarball_sha256}  dataset.tar' | sha256sum -c -; fi",
+      "# One pristine copy per benchmark: tests that ingest into the tree",
+      "# mutate it, so each yml points at its own extraction.",
+      "for sub in a b; do mkdir -p $sub && tar -xf dataset.tar -C $sub; done",
+      "rm -f dataset.tar",
+      "echo '=== Dataset placement complete ==='",
+      "ls -la ${var.dataset_extract_dir}",
+      "df -h /mnt/flash"
+    ]
+  }
+}

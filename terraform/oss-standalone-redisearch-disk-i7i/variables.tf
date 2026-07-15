@@ -193,3 +193,21 @@ variable "parca_agent_token" {
   default     = ""
   # sensitive   = true  # Temporarily disabled for debugging
 }
+
+################################################################################
+# Optional pre-start dataset placement (e.g. prebuilt BigRedis/SpeedB trees)
+################################################################################
+variable "dataset_tarball_url" {
+  description = "Public URL of a tar archive extracted into dataset_extract_dir on the DB host before the benchmark starts. Empty = skip."
+  default     = ""
+}
+
+variable "dataset_tarball_sha256" {
+  description = "Expected SHA256 of the dataset tarball; verified before extraction when non-empty."
+  default     = ""
+}
+
+variable "dataset_extract_dir" {
+  description = "Directory on the DB host the dataset tarball is extracted into."
+  default     = "/mnt/flash/dataset"
+}
