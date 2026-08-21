@@ -13,6 +13,9 @@ resource "aws_elasticache_replication_group" "ec" {
   subnet_group_name           = "ec-subnet"
   at_rest_encryption_enabled  = false
   data_tiering_enabled        = false
+  tags = {
+    team = "performance_analysis_optimization"
+  }
 }
 
 

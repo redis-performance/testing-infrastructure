@@ -14,4 +14,7 @@ resource "aws_elasticache_replication_group" "ec_2_primaries" {
   subnet_group_name          = "ec-multi-az"
   transit_encryption_enabled = false
   # auth_token = "performance-at-redis"
+  tags = {
+    team = "performance_analysis_optimization"
+  }
 }

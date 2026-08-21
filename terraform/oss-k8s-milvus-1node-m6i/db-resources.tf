@@ -27,7 +27,7 @@ resource "aws_instance" "server" {
     github_repo  = "${var.github_repo}"
     github_sha   = "${var.github_sha}"
     timeout_secs = "${var.timeout_secs}"
-    team           = "performance a&o"
+    team           = "performance_analysis_optimization"
   }
 
   tags = {
@@ -39,7 +39,7 @@ resource "aws_instance" "server" {
     github_repo  = "${var.github_repo}"
     github_sha   = "${var.github_sha}"
     timeout_secs = "${var.timeout_secs}"
-    team           = "performance a&o"
+    team           = "performance_analysis_optimization"
   }
 
   ################################################################################

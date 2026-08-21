@@ -29,5 +29,8 @@ resource "aws_elasticache_replication_group" "ec" {
 
 
 
+  tags = {
+    team = "performance_analysis_optimization"
+  }
 }
 
