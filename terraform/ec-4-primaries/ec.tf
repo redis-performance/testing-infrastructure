@@ -13,4 +13,7 @@ resource "aws_elasticache_replication_group" "ec" {
   security_group_ids         = ["${data.terraform_remote_state.shared_resources.outputs.performance_cto_sg_id}"]
   subnet_group_name          = "ec-multi-az"
   transit_encryption_enabled = false
+  tags = {
+    team = "performance_analysis_optimization"
+  }
 }

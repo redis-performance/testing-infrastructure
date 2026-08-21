@@ -26,6 +26,12 @@ resource "aws_elasticache_replication_group" "rg" {
   # A user-created description for the replication group.
   description = "rg-1-primaries-1-replicas-v7-r6g-2xlarge"
 
+
+  tags = {
+
+    team = "performance_analysis_optimization"
+
+  }
 }
 
 # resource "aws_elasticache_cluster" "ec" {

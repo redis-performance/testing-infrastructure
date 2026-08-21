@@ -33,6 +33,7 @@ module "cluster" {
   skip_final_snapshot = true
 
   tags = {
+    team    = "performance_analysis_optimization"
     "Name"  = "vector-benchmark-aurora-db-postgres-16-2"
     Project = "Vector-Competitive-Aurora"
   }

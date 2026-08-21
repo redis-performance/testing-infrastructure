@@ -14,6 +14,10 @@ resource "google_compute_instance" "default" {
 
   tags = ["foo", "bar"]
 
+  labels = {
+    team = "performance_analysis_optimization"
+  }
+
   boot_disk {
     initialize_params {
       image = "ubuntu-1804-lts"

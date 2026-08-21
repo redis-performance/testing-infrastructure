@@ -27,7 +27,7 @@ resource "aws_instance" "az2_server" {
     github_org     = "${var.github_org}"
     github_repo    = "${var.github_repo}"
     github_sha     = "${var.github_sha}"
-team     = "performance a&o"
+team     = "performance_analysis_optimization"
   }
 
   tags = {
@@ -40,7 +40,7 @@ team     = "performance a&o"
     github_org     = "${var.github_org}"
     github_repo    = "${var.github_repo}"
     github_sha     = "${var.github_sha}"
-team     = "performance a&o"
+team     = "performance_analysis_optimization"
   }
 
   ################################################################################

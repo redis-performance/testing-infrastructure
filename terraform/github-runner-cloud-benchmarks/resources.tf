@@ -27,7 +27,7 @@ resource "aws_instance" "github_runner_instance" {
 
     Environment = "cloud-benchmarks"
      Project = "cloud-benchmarks"
-    team           = "performance a&o"
+    team           = "performance_analysis_optimization"
   }
 }
 

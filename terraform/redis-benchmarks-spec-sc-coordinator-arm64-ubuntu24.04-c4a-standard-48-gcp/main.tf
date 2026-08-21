@@ -179,6 +179,7 @@ resource "google_compute_instance" "benchmark_coordinator" {
     purpose     = "redis-benchmark-coordinator"
     arch        = "arm64"
     machine     = "c4a-axion"
+    team        = "performance_analysis_optimization"
   }
 
   # Lifecycle management

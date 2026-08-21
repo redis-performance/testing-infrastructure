@@ -8,4 +8,7 @@ resource "aws_elasticache_cluster" "ec" {
   num_cache_nodes      = 1
   security_group_ids   = ["${data.terraform_remote_state.shared_resources.outputs.performance_cto_sg_id}"]
   subnet_group_name    = "ec-multi-az"
+  tags = {
+    team = "performance_analysis_optimization"
+  }
 }

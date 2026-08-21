@@ -35,6 +35,7 @@ module "cluster" {
   # enabled_cloudwatch_logs_exports = ["postgresql"]
 
   tags = {
+    team    = "performance_analysis_optimization"
     "Name"  = "vector-benchmark-aurora-db-postgres-16-1"
     Project = "Vector-Competitive-Aurora"
   }
