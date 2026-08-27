@@ -15,7 +15,8 @@ resource "aws_elasticache_replication_group" "ec" {
   data_tiering_enabled        = false
   apply_immediately           = true
   tags = {
-    team = "performance_analysis_optimization"
+    team  = "performance_analysis_optimization"
+    owner = "${var.github_actor}"
   }
 }
 

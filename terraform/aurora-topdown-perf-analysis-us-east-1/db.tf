@@ -63,5 +63,6 @@ module "cluster" {
     "Name"  = "topdown-perf-analysis-db"
     Project = "topdown-perf-analysis"
     team    = "performance_analysis_optimization"
+    owner   = "${var.github_actor}"
   }
 }

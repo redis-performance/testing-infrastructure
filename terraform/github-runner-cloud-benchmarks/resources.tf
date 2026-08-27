@@ -10,11 +10,11 @@ data "terraform_remote_state" "eu_west_1_common" {
 
 # Create the EC2 instance for GitHub runner
 resource "aws_instance" "github_runner_instance" {
-  ami                         = "ami-095c0fee0e8a3c88d" # Ubuntu 24.04 LTS (eu-west-1)
-  instance_type               = "m7i.8xlarge"
-  subnet_id                   = data.terraform_remote_state.eu_west_1_common.outputs.github_runner_subnet_id
-  vpc_security_group_ids       = [data.terraform_remote_state.eu_west_1_common.outputs.github_runner_sg_id]
-  key_name                    = "benchmarks-eu-west-1"
+  ami                    = "ami-095c0fee0e8a3c88d" # Ubuntu 24.04 LTS (eu-west-1)
+  instance_type          = "m7i.8xlarge"
+  subnet_id              = data.terraform_remote_state.eu_west_1_common.outputs.github_runner_subnet_id
+  vpc_security_group_ids = [data.terraform_remote_state.eu_west_1_common.outputs.github_runner_sg_id]
+  key_name               = "benchmarks-eu-west-1"
 
   root_block_device {
     volume_size           = var.instance_volume_size
@@ -26,8 +26,9 @@ resource "aws_instance" "github_runner_instance" {
     Name = "github-runner"
 
     Environment = "cloud-benchmarks"
-     Project = "cloud-benchmarks"
-    team           = "performance_analysis_optimization"
+    Project     = "cloud-benchmarks"
+    team        = "performance_analysis_optimization"
+    owner       = "${var.github_actor}"
   }
 }
 
@@ -40,6 +41,6 @@ resource "aws_eip" "github_runner_eip" {
     Name = "github-runner-eip"
 
     Environment = "cloud-benchmarks"
-     Project = "cloud-benchmarks"
+    Project     = "cloud-benchmarks"
   }
 }

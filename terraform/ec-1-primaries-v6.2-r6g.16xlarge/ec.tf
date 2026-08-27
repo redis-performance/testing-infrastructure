@@ -11,6 +11,7 @@ resource "aws_elasticache_cluster" "ec" {
   subnet_group_name    = "ec-subnet"
   availability_zone    = "us-east-2a"
   tags = {
-    team = "performance_analysis_optimization"
+    team  = "performance_analysis_optimization"
+    owner = "${var.github_actor}"
   }
 }

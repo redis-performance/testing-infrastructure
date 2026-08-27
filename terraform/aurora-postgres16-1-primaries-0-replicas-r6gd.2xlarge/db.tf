@@ -35,6 +35,7 @@ module "cluster" {
 
   tags = {
     team    = "performance_analysis_optimization"
+    owner   = "${var.github_actor}"
     "Name"  = "vector-benchmark-aurora-db-r6gd-2xlarge-postgres-16-1"
     Project = "Vector-Competitive-Aurora"
   }
