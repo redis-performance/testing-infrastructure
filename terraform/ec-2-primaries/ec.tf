@@ -15,6 +15,7 @@ resource "aws_elasticache_replication_group" "ec_2_primaries" {
   transit_encryption_enabled = false
   # auth_token = "performance-at-redis"
   tags = {
-    team = "performance_analysis_optimization"
+    team  = "performance_analysis_optimization"
+    owner = "${var.github_actor}"
   }
 }

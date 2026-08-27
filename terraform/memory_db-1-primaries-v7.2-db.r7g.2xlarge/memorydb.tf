@@ -29,6 +29,7 @@ module "memory_db" {
 
   tags = {
     team    = "performance_analysis_optimization"
+    owner   = "${var.github_actor}"
     Project = "Vecsim-MemoryDB"
   }
 }

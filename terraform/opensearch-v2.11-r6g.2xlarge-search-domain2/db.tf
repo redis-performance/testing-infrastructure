@@ -69,6 +69,7 @@ resource "aws_opensearch_domain" "example" {
 
   tags = {
     team    = "performance_analysis_optimization"
+    owner   = "${var.github_actor}"
     Domain  = var.domain_name
     Name    = "vector-benchmark-opensearch-v2-11"
     Project = "Vector-Competitive-OpenSearch"

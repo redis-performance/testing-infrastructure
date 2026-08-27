@@ -29,7 +29,8 @@ resource "aws_elasticache_replication_group" "rg" {
 
   tags = {
 
-    team = "performance_analysis_optimization"
+    team  = "performance_analysis_optimization"
+    owner = "${var.github_actor}"
 
   }
 }

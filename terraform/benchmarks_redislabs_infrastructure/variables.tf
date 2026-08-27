@@ -115,3 +115,8 @@ variable "key_name_proxy" {
 }
 
 
+
+variable "github_actor" {
+  description = "The name of the person or app that initiated the deployment."
+  default     = "N/A"
+}

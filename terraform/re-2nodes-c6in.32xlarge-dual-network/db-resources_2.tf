@@ -51,7 +51,8 @@ resource "aws_instance" "server_2" {
     github_org     = "${var.github_org}"
     github_repo    = "${var.github_repo}"
     github_sha     = "${var.github_sha}"
-team     = "performance_analysis_optimization"
+    team           = "performance_analysis_optimization"
+    owner          = "${var.github_actor}"
   }
 
   tags = {
@@ -64,7 +65,8 @@ team     = "performance_analysis_optimization"
     github_org     = "${var.github_org}"
     github_repo    = "${var.github_repo}"
     github_sha     = "${var.github_sha}"
-team     = "performance_analysis_optimization"
+    team           = "performance_analysis_optimization"
+    owner          = "${var.github_actor}"
   }
 
   network_interface {

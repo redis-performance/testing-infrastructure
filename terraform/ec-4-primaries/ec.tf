@@ -14,6 +14,7 @@ resource "aws_elasticache_replication_group" "ec" {
   subnet_group_name          = "ec-multi-az"
   transit_encryption_enabled = false
   tags = {
-    team = "performance_analysis_optimization"
+    team  = "performance_analysis_optimization"
+    owner = "${var.github_actor}"
   }
 }

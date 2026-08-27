@@ -142,5 +142,6 @@ locals {
     github_sha     = var.github_sha
     timeout_secs   = var.timeout_secs
     team           = "performance_analysis_optimization"
+    owner          = "${var.github_actor}"
   }
 }

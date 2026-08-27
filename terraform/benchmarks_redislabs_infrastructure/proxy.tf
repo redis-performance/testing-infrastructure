@@ -20,13 +20,15 @@ resource "aws_instance" "proxy_instance" {
   volume_tags = {
     Environment = "${var.environment}"
     Name        = "ebs_block_device-benchmarks.redislabs.com-PROXY-${count.index + 1}"
-    team           = "performance_analysis_optimization"
+    team        = "performance_analysis_optimization"
+    owner       = "${var.github_actor}"
   }
 
   tags = {
     Environment = "${var.environment}"
     Name        = "benchmarks.redislabs.com-PROXY-${count.index + 1}"
-    team           = "performance_analysis_optimization"
+    team        = "performance_analysis_optimization"
+    owner       = "${var.github_actor}"
   }
 
 
