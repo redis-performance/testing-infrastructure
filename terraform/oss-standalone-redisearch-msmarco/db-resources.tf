@@ -8,7 +8,7 @@ resource "aws_instance" "server" {
   key_name                    = var.key_name
   associate_public_ip_address = "true"
   #placement_group             = data.terraform_remote_state.shared_resources.outputs.perf_cto_pg_name
-  availability_zone           = "us-east-2a"
+  availability_zone = "us-east-2a"
 
   cpu_options {
     core_count       = var.server_instance_cpu_core_count
@@ -32,7 +32,8 @@ resource "aws_instance" "server" {
     github_org     = "${var.github_org}"
     github_repo    = "${var.github_repo}"
     github_sha     = "${var.github_sha}"
-team     = "performance a&o"
+    team           = "performance_analysis_optimization"
+    owner          = "${var.github_actor}"
     timeout_secs   = "${var.timeout_secs}"
   }
 
@@ -46,7 +47,8 @@ team     = "performance a&o"
     github_org     = "${var.github_org}"
     github_repo    = "${var.github_repo}"
     github_sha     = "${var.github_sha}"
-team     = "performance a&o"
+    team           = "performance_analysis_optimization"
+    owner          = "${var.github_actor}"
     timeout_secs   = "${var.timeout_secs}"
   }
 

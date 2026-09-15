@@ -28,6 +28,8 @@ module "memory_db" {
   subnet_ids = ["subnet-0597ccd9e8d2a050e"]
 
   tags = {
+    team    = "performance_analysis_optimization"
+    owner   = "${var.github_actor}"
     Project = "Vecsim-MemoryDB"
   }
 }

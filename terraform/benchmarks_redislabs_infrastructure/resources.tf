@@ -45,14 +45,16 @@ resource "aws_instance" "monitoring_instance" {
     Environment = "${var.environment}"
     Name        = "ebs_block_device-${var.setup_name}-${count.index + 1}"
     RedisModule = "${var.redis_module}"
-    team           = "performance a&o"
+    team        = "performance_analysis_optimization"
+    owner       = "${var.github_actor}"
   }
 
   tags = {
     Environment = "${var.environment}"
     Name        = "${var.setup_name}-${count.index + 1}"
     RedisModule = "${var.redis_module}"
-    team           = "performance a&o"
+    team        = "performance_analysis_optimization"
+    owner       = "${var.github_actor}"
   }
 
 

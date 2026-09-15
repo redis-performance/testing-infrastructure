@@ -17,4 +17,8 @@ resource "aws_elasticache_replication_group" "ec" {
   replicas_per_node_group    = 0
   security_group_ids         = ["${data.terraform_remote_state.shared_resources.outputs.performance_cto_sg_id}"]
   transit_encryption_enabled = false
+  tags = {
+    team  = "performance_analysis_optimization"
+    owner = "${var.github_actor}"
+  }
 }

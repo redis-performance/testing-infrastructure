@@ -13,4 +13,8 @@ resource "aws_elasticache_replication_group" "ec" {
   at_rest_encryption_enabled  = false
   data_tiering_enabled        = false
   transit_encryption_enabled  = true
+  tags = {
+    team  = "performance_analysis_optimization"
+    owner = "${var.github_actor}"
+  }
 }

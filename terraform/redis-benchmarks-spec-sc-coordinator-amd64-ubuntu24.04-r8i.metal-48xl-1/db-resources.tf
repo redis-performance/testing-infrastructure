@@ -20,15 +20,15 @@ resource "aws_instance" "server" {
 
   # Cloud-init user data for benchmark runner setup
   user_data = templatefile("${path.module}/cloud-init.yaml", {
-    platform_name                    = var.platform_name
-    event_stream_host                = local.event_stream_host_eff
-    event_stream_port                = local.event_stream_port_eff
-    event_stream_user                = local.event_stream_user_eff
-    event_stream_pass                = local.event_stream_pass_eff
-    datasink_redistimeseries_host    = local.datasink_rts_host_eff
-    datasink_redistimeseries_port    = local.datasink_rts_port_eff
-    datasink_redistimeseries_pass    = local.datasink_rts_pass_eff
-    arch                              = var.arch
+    platform_name                 = var.platform_name
+    event_stream_host             = local.event_stream_host_eff
+    event_stream_port             = local.event_stream_port_eff
+    event_stream_user             = local.event_stream_user_eff
+    event_stream_pass             = local.event_stream_pass_eff
+    datasink_redistimeseries_host = local.datasink_rts_host_eff
+    datasink_redistimeseries_port = local.datasink_rts_port_eff
+    datasink_redistimeseries_pass = local.datasink_rts_pass_eff
+    arch                          = var.arch
   })
 
   # Replace the instance if user_data changes so cloud-init re-runs on first boot
@@ -50,7 +50,8 @@ resource "aws_instance" "server" {
     github_repo  = "${var.github_repo}"
     github_sha   = "${var.github_sha}"
     timeout_secs = "${var.timeout_secs}"
-    team           = "performance a&o"
+    team         = "performance_analysis_optimization"
+    owner        = "${var.github_actor}"
   }
 
   tags = {
@@ -62,7 +63,8 @@ resource "aws_instance" "server" {
     github_repo  = "${var.github_repo}"
     github_sha   = "${var.github_sha}"
     timeout_secs = "${var.timeout_secs}"
-    team           = "performance a&o"
+    team         = "performance_analysis_optimization"
+    owner        = "${var.github_actor}"
   }
 
   ################################################################################

@@ -27,7 +27,8 @@ resource "aws_instance" "r6a_2xlarge" {
     github_org     = "${var.github_org}"
     github_repo    = "${var.github_repo}"
     github_sha     = "${var.github_sha}"
-team     = "performance a&o"
+    team           = "performance_analysis_optimization"
+    owner          = "${var.github_actor}"
     timeout_secs   = "${var.timeout_secs}"
   }
 
@@ -40,6 +41,7 @@ team     = "performance a&o"
     github_org     = "${var.github_org}"
     github_repo    = "${var.github_repo}"
     github_sha     = "${var.github_sha}"
-team     = "performance a&o"
+    team           = "performance_analysis_optimization"
+    owner          = "${var.github_actor}"
   }
 }

@@ -27,4 +27,11 @@ resource "aws_elasticache_replication_group" "rg" {
   # A user-created description for the replication group.
   description = "ec-data-tiering-r6gd-8xlarge"
 
+
+  tags = {
+
+    team  = "performance_analysis_optimization"
+    owner = "${var.github_actor}"
+
+  }
 }

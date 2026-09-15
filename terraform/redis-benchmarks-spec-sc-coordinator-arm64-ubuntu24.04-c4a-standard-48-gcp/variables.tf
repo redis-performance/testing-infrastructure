@@ -47,7 +47,7 @@ variable "machine_type" {
   type        = string
   default     = "c4a-standard-48"
   validation {
-    condition = can(regex("^c4a-(standard|highcpu|highmem)-[0-9]+(-lssd)?$", var.machine_type))
+    condition     = can(regex("^c4a-(standard|highcpu|highmem)-[0-9]+(-lssd)?$", var.machine_type))
     error_message = "Machine type must be a valid C4A instance type (e.g., c4a-standard-48, c4a-highmem-32, c4a-highcpu-64)."
   }
 }
@@ -63,7 +63,7 @@ variable "boot_disk_type" {
   type        = string
   default     = "hyperdisk-balanced"
   validation {
-    condition = contains(["hyperdisk-balanced", "hyperdisk-extreme", "hyperdisk-throughput"], var.boot_disk_type)
+    condition     = contains(["hyperdisk-balanced", "hyperdisk-extreme", "hyperdisk-throughput"], var.boot_disk_type)
     error_message = "C4A instances only support Hyperdisk types: hyperdisk-balanced, hyperdisk-extreme, hyperdisk-throughput."
   }
 }
@@ -259,4 +259,9 @@ variable "arch" {
   description = "Architecture"
   type        = string
   default     = "arm64"
+}
+
+variable "github_actor" {
+  description = "The name of the person or app that initiated the deployment."
+  default     = "N/A"
 }

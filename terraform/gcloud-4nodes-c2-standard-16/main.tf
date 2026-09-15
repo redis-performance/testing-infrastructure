@@ -14,6 +14,12 @@ resource "google_compute_instance" "default" {
 
   tags = ["foo", "bar"]
 
+  labels = {
+    team = "performance_analysis_optimization"
+    # GCP label values only allow lowercase letters, digits, "_" and "-".
+    owner = replace(lower(var.github_actor), "/[^a-z0-9_-]/", "-")
+  }
+
   boot_disk {
     initialize_params {
       image = "ubuntu-1804-lts"

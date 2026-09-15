@@ -109,16 +109,16 @@ locals {
 # Cloud-init configuration
 locals {
   cloud_init_config = templatefile("${path.module}/cloud-init.yaml", {
-    platform_name                    = var.platform_name
-    event_stream_host                = local.event_stream_host_eff
-    event_stream_port                = local.event_stream_port_eff
-    event_stream_user                = local.event_stream_user_eff
-    event_stream_pass                = local.event_stream_pass_eff
-    datasink_redistimeseries_host    = local.datasink_rts_host_eff
-    datasink_redistimeseries_port    = local.datasink_rts_port_eff
-    datasink_redistimeseries_pass    = local.datasink_rts_pass_eff
-    arch                            = "arm64"
-    timeout_secs                    = var.timeout_secs
+    platform_name                 = var.platform_name
+    event_stream_host             = local.event_stream_host_eff
+    event_stream_port             = local.event_stream_port_eff
+    event_stream_user             = local.event_stream_user_eff
+    event_stream_pass             = local.event_stream_pass_eff
+    datasink_redistimeseries_host = local.datasink_rts_host_eff
+    datasink_redistimeseries_port = local.datasink_rts_port_eff
+    datasink_redistimeseries_pass = local.datasink_rts_pass_eff
+    arch                          = "arm64"
+    timeout_secs                  = var.timeout_secs
   })
 }
 
@@ -179,6 +179,9 @@ resource "google_compute_instance" "benchmark_coordinator" {
     purpose     = "redis-benchmark-coordinator"
     arch        = "arm64"
     machine     = "c4a-axion"
+    team        = "performance_analysis_optimization"
+    # GCP label values only allow lowercase letters, digits, "_" and "-".
+    owner = replace(lower(var.github_actor), "/[^a-z0-9_-]/", "-")
   }
 
   # Lifecycle management

@@ -26,7 +26,8 @@ resource "aws_instance" "server_2a" {
     github_org     = "${var.github_org}"
     github_repo    = "${var.github_repo}"
     github_sha     = "${var.github_sha}"
-team     = "performance a&o"
+    team           = "performance_analysis_optimization"
+    owner          = "${var.github_actor}"
   }
 
   tags = {
@@ -39,7 +40,8 @@ team     = "performance a&o"
     github_org     = "${var.github_org}"
     github_repo    = "${var.github_repo}"
     github_sha     = "${var.github_sha}"
-team     = "performance a&o"
+    team           = "performance_analysis_optimization"
+    owner          = "${var.github_actor}"
   }
 
   ################################################################################
