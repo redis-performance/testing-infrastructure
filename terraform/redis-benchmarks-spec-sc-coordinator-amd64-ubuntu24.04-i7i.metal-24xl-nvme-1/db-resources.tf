@@ -46,6 +46,15 @@ resource "aws_instance" "server" {
   # Replace the instance if user_data changes so cloud-init re-runs on first boot
   user_data_replace_on_change = true
 
+  # Bare-metal instances routinely exceed the provider's 10-minute default for
+  # reaching "running" -- an i8g.metal-24xl timed out at 10m while the instance
+  # itself came up healthy, leaving terraform to fail a create that had actually
+  # succeeded.
+  timeouts {
+    create = "30m"
+    delete = "30m"
+  }
+
   root_block_device {
     volume_size           = var.instance_volume_size
     volume_type           = var.instance_volume_type

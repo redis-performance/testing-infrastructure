@@ -60,6 +60,11 @@ fi
 COORD_HOME="${MOUNT}/coordinator-home"
 PLATFORM="${PLATFORM_NAME_BASE}${SUFFIX}"
 
+# Supervisor runs the coordinator as root (no `user =` in the block below),
+# matching the rest of the fleet: the benchmark containers need the docker
+# socket, and RUNNER_USER is not in the docker group on these images. Setting
+# `user =` here crash-loops the coordinator on docker.from_env() with
+# PermissionError(13) against /var/run/docker.sock.
 mkdir -p "$COORD_HOME"
 chown "${RUNNER_USER}:${RUNNER_USER}" "$COORD_HOME"
 
@@ -71,7 +76,6 @@ cat > "$SUPERVISOR_CONF" <<CONF
 command = ${COORDINATOR_BIN} --platform-name ${PLATFORM} --arch ${ARCH} --event_stream_host ${EVENT_STREAM_HOST} --event_stream_port ${EVENT_STREAM_PORT} --event_stream_user ${EVENT_STREAM_USER} --event_stream_pass ${EVENT_STREAM_PASS} --datasink_push_results_redistimeseries --datasink_redistimeseries_host ${DATASINK_RTS_HOST} --datasink_redistimeseries_port ${DATASINK_RTS_PORT} --datasink_redistimeseries_pass ${DATASINK_RTS_PASS} --tests-regexp '${TESTS_REGEXP}' ${EXPLICIT_FLAG} --logname /var/opt/redis-benchmarks-spec-sc-coordinator-1.log
 directory = ${COORD_HOME}
 environment = HOME="${COORD_HOME}",TMPDIR="${COORD_HOME}"
-user = ${RUNNER_USER}
 startsecs = 0
 autostart = ${AUTOSTART:-false}
 autorestart = true
