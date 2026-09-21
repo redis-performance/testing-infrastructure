@@ -40,8 +40,12 @@ write_files:
       echo "Setting up benchmark runner environment..."
 
       # Upgrade pip
-      sudo pip3 install --upgrade pip  --break-system-packages
-      sudo pip3 install pyopenssl --upgrade  --break-system-packages
+      # Upgrade pip (handle potential upgrade issues gracefully)
+      sudo pip3 install --upgrade pip --break-system-packages || {
+        echo "WARNING: pip upgrade failed, continuing with existing pip version"
+        echo "This is expected on Ubuntu 24.04 with system-managed pip"
+      }
+      sudo pip3 install pyopenssl --upgrade --break-system-packages
 
       # Install redis-benchmarks-specification
       sudo python3 -m pip install redis-benchmarks-specification --break-system-packages
