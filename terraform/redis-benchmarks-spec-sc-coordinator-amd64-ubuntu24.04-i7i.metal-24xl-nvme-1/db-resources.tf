@@ -17,7 +17,11 @@ resource "aws_instance" "server" {
   vpc_security_group_ids = ["sg-046d72511dd949d2b"]
   key_name               = var.key_name
 
-  user_data = templatefile("${path.module}/cloud-init.yaml", {
+  # gzip+base64: the rendered cloud-config is ~20 KB with both scripts embedded,
+  # over EC2's 16384-byte user_data cap. cloud-init decompresses gzipped
+  # user-data natively, so this needs no fetch-at-boot step and keeps the
+  # scripts self-contained in the AMI-independent user_data.
+  user_data_base64 = base64gzip(templatefile("${path.module}/cloud-init.yaml", {
     platform_name_base            = var.platform_name_base
     default_storage_condition     = var.default_storage_condition
     tests_regexp                  = var.tests_regexp
@@ -37,7 +41,7 @@ resource "aws_instance" "server" {
     # scripts rely on.
     prepare_storage_b64             = filebase64("${path.module}/prepare_storage.sh")
     benchmark_storage_condition_b64 = filebase64("${path.module}/benchmark-storage-condition.sh")
-  })
+  }))
 
   # Replace the instance if user_data changes so cloud-init re-runs on first boot
   user_data_replace_on_change = true
