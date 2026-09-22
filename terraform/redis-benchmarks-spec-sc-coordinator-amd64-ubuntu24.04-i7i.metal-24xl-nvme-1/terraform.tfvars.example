@@ -1,0 +1,35 @@
+# Copy to terraform.tfvars and fill in, or export the EVENT_STREAM_* /
+# DATASINK_RTS_* environment variables instead (env.sh picks those up and they
+# take precedence over these values).
+
+event_stream_host = "your-event-stream-host.com"
+event_stream_port = "6379"
+event_stream_user = "your-username"
+event_stream_pass = "your-password"
+
+datasink_redistimeseries_host = "your-redistimeseries-host.com"
+datasink_redistimeseries_port = "6379"
+datasink_redistimeseries_pass = "your-redistimeseries-password"
+
+# Storage condition to configure at first boot. Switch later on the box with:
+#   sudo benchmark-storage-condition {nvme|ebs}
+# default_storage_condition = "nvme"
+
+# Dedicated EBS benchmark-data volume. Defaults reproduce the gp3 tier the
+# existing fleet runs at (3000 IOPS / 125 MiB/s) so the first comparison
+# matches the existing EBS cohort. Raise these to test sensitivity to the
+# storage ceiling -- and record which tier each result came from.
+# ebs_data_volume_type       = "gp3"
+# ebs_data_volume_iops       = 3000
+# ebs_data_volume_throughput = 125
+# ebs_data_volume_size       = 512
+
+# Runner-side spec filter. Applied at coordinator startup only; a restart is
+# required after changing it.
+# tests_regexp = ".*(replica-only|fullsync|full-sync|bgsave|aof|rdb).*"
+
+# Start the coordinator on boot. Leave false while a storage qualification is
+# in flight.
+# coordinator_autostart = "false"
+
+# github_actor = "your-github-username"
