@@ -1,0 +1,72 @@
+#cloud-config
+
+# Server-side relabel config for parca-agent, mirrored from the
+# /etc/parca-agent.yml convention used on the Redis OSS benchmark runners:
+#   * drop every sample whose executable is not redis-server so Polar
+#     Signals storage/quota is spent on the module we actually profile
+#     (RediSearch code runs inside the redis-server process)
+#   * promote __meta_thread_id / thread_comm / process_pid to first-class
+#     labels so queries can filter by thread or pid
+#   * default role=primary, override to replica when `replicaof` is in the
+#     process cmdline
+write_files:
+  - path: /etc/parca-agent.yml
+    permissions: '0644'
+    owner: root:root
+    content: |
+      relabel_configs:
+        - source_labels: [__meta_thread_id]
+          target_label: thread_id
+
+        - source_labels: [__meta_thread_comm]
+          target_label: thread_name
+
+        - source_labels: [__meta_process_pid]
+          target_label: pid
+
+        # Drop everything that is NOT redis-server.
+        - source_labels: [__meta_process_executable_name]
+          regex: "^redis-server$"
+          action: keep
+
+        # Default: mark as primary.
+        - target_label: role
+          replacement: primary
+          action: replace
+
+        # Override: mark as replica if "replicaof" appears in cmdline.
+        - source_labels: [__meta_process_cmdline]
+          regex: '.*replicaof.*'
+          target_label: role
+          replacement: replica
+          action: replace
+
+# Parca agent install + wire the config.
+#
+# Channel:
+#   `stable` -> v0.46.0, works with JWT tokens that embed `projectId`.
+#   `edge`   -> v0.47.1+, required when the token is `psc_v1_<secret>_<id>`
+#              (no project binding in the token -- v0.46.0 does not honor
+#              the projectID gRPC header in that case).
+#
+# GRPC headers:
+#   When `parca_agent_project_id` is set, parca-agent is told to route writes
+#   to that project via `--remote-store-grpc-headers=projectID=<id>` (this is
+#   exactly how Polar Signals' own k8s `manifests.yaml` wires the DaemonSet).
+#   Leave the project id empty when using a JWT token that already carries
+#   the project id in its claims.
+snap:
+  commands:
+    - [install, parca-agent, --classic, --channel=${parca_agent_snap_channel}]
+    - [set, parca-agent, config-path=/etc/parca-agent.yml]
+    - [
+        set,
+        parca-agent,
+        remote-store-bearer-token=${parca_agent_token},
+      ]
+    - [
+        set,
+        parca-agent,
+        remote-store-grpc-headers=projectID=${parca_agent_project_id},
+      ]
+    - [start, --enable, parca-agent]
