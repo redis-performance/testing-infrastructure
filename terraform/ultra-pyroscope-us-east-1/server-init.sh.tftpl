@@ -1,0 +1,467 @@
+#!/bin/bash
+# Bootstrap of the Ultra Pyroscope server (rendered by Terraform; runs once per instance via cloud-init).
+# State that matters is on the metastore EBS volume (/data) and in S3; everything here is idempotent.
+# Ubuntu 26.04 LTS; nginx from nginx.org.
+set -euo pipefail
+exec > >(tee -a /var/log/server-init.log) 2>&1
+echo "server-init: start $(date -u +%FT%TZ)"
+
+REGION="${region}"
+BUCKET="${bucket}"
+IMAGE="${image}"
+HOST_NAME="${hostname}"
+SSM_PREFIX="${ssm_prefix}"
+VOLUME_ID="${metastore_volume}"
+
+# Settings for the helper scripts below (quoted heredocs: they read these at run time).
+cat > /etc/default/ultra-pyroscope <<ENV
+REGION=$REGION
+BUCKET=$BUCKET
+HOST_NAME=$HOST_NAME
+SSM_PREFIX=$SSM_PREFIX
+ENV
+
+export DEBIAN_FRONTEND=noninteractive
+# First boot: unattended-upgrades may hold the dpkg lock; mirrors may blip.
+cat > /etc/apt/apt.conf.d/80-server-init <<'APT'
+DPkg::Lock::Timeout "600";
+Acquire::Retries "5";
+APT
+apt-get update -y
+apt-get install -y --no-install-recommends docker.io certbot jq unzip curl openssl gnupg ca-certificates unattended-upgrades
+systemctl enable --now docker
+
+# --- nginx from nginx.org (${nginx_channel}) ----------------------------------------------------------
+# The signing keys are pinned by fingerprint (https://nginx.org/en/linux_packages.html); apt prefers this
+# origin for nginx, and unattended-upgrades applies its updates like Ubuntu's security updates.
+curl -fsSL https://nginx.org/keys/nginx_signing.key | gpg --dearmor > /tmp/nginx-keyring.gpg
+for fpr in $(gpg --show-keys --with-colons /tmp/nginx-keyring.gpg | awk -F: '/^pub/ {p = 1; next} /^fpr/ && p {print $10; p = 0}'); do
+  case "$fpr" in
+    573BFD6B3D8FBC641079A6ABABF5BD827BD9BF62 | 8540A6F18833A80E9C1653A42FD21310B49F6B46 | 9E9BE90EACBCDE69FE9B204CBCDCD8A38D88A2B3) ;;
+    *) echo "server-init: unexpected nginx.org signing key $fpr"; exit 1 ;;
+  esac
+done
+install -m 0644 /tmp/nginx-keyring.gpg /usr/share/keyrings/nginx-archive-keyring.gpg && rm -f /tmp/nginx-keyring.gpg
+CODENAME=$(. /etc/os-release && echo "$VERSION_CODENAME")
+echo "deb [signed-by=/usr/share/keyrings/nginx-archive-keyring.gpg] https://nginx.org/packages/%{ if nginx_channel == "mainline" }mainline/%{ endif }ubuntu $CODENAME nginx" > /etc/apt/sources.list.d/nginx.list
+printf 'Package: *\nPin: origin nginx.org\nPin: release o=nginx\nPin-Priority: 900\n' > /etc/apt/preferences.d/99nginx
+cat > /etc/apt/apt.conf.d/52unattended-upgrades-nginx <<'APT'
+Unattended-Upgrade::Origins-Pattern { "origin=nginx,codename=$${distro_codename}"; };
+APT
+apt-get update -y
+apt-get install -y --no-install-recommends nginx
+nginx -v
+
+# AWS CLI v2 (SSM, snapshot backups, the health metrics).
+if ! command -v aws >/dev/null; then
+  curl -fsSL https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip -o /tmp/awscli.zip
+  unzip -q /tmp/awscli.zip -d /tmp && /tmp/aws/install --update && rm -rf /tmp/aws /tmp/awscli.zip
+fi
+
+# --- The metastore volume ---------------------------------------------------------------------------
+# Found by its volume ID (Nitro device names aren't stable), formatted only if it has no filesystem, and
+# checked against a sentinel so Pyroscope never starts on an empty or foreign disk by mistake. The sentinel
+# names the role, not the volume, so a volume restored from a snapshot (new ID) is accepted.
+SENTINEL="ultra-pyroscope-metastore"
+DEV="/dev/disk/by-id/nvme-Amazon_Elastic_Block_Store_$(echo "$VOLUME_ID" | tr -d '-')"
+for _ in $(seq 1 120); do [ -e "$DEV" ] && break; sleep 5; done
+[ -e "$DEV" ] || { echo "server-init: metastore volume $VOLUME_ID never attached"; exit 1; }
+FRESH=0
+# -p probes the device itself (no cache); exit 2 = no filesystem, anything else nonzero is an error.
+blk=0; blkid -p "$DEV" >/dev/null 2>&1 || blk=$?
+[ "$blk" = 0 ] || [ "$blk" = 2 ] || { echo "server-init: blkid failed ($blk) on $DEV"; exit 1; }
+if [ "$blk" = 2 ]; then
+  # A blank volume means a new, empty index. If the bucket already has profiles, that would hide them all
+  # silently (v2 can't rebuild the index from S3): refuse, unless the operator opted in (README, restore).
+  if [ -n "$(aws s3api list-objects-v2 --region "$REGION" --bucket "$BUCKET" --prefix data/ --max-keys 1 --query 'Contents[0].Key' --output text 2>/dev/null | grep -v '^None$')" ] &&
+    ! aws ssm get-parameter --region "$REGION" --name "$SSM_PREFIX/allow-empty-metastore" >/dev/null 2>&1; then
+    echo "server-init: blank metastore volume but s3://$BUCKET/data/ has profiles; restore the volume from a snapshot (README) or create $SSM_PREFIX/allow-empty-metastore"
+    exit 1
+  fi
+  echo "server-init: new metastore volume, formatting"
+  mkfs.ext4 -q -L pyrodata "$DEV"
+  FRESH=1
+fi
+mkdir -p /data
+# By UUID: a second volume with the same label (e.g. a snapshot attached for inspection) can't be mounted.
+UUID=$(blkid -p -s UUID -o value "$DEV")
+sed -i '\| /data |d' /etc/fstab
+echo "UUID=$UUID /data ext4 defaults,nofail,noatime 0 2" >> /etc/fstab
+systemctl daemon-reload
+mountpoint -q /data || mount /data
+resize2fs "$(readlink -f "$DEV")" || true # a grown volume
+if [ "$FRESH" = 1 ]; then
+  echo "$SENTINEL" > /data/.ultra-pyroscope
+elif [ "$(cat /data/.ultra-pyroscope 2>/dev/null)" != "$SENTINEL" ] && [ "$(cat /data/.ultra-pyroscope 2>/dev/null)" != "$VOLUME_ID" ]; then
+  echo "server-init: /data is not a Pyroscope metastore volume (sentinel mismatch); not starting Pyroscope"
+  exit 1
+fi
+echo "$SENTINEL" > /data/.ultra-pyroscope
+mkdir -p /data/metastore/raft /data/metastore/data /data/letsencrypt /var/lib/pyroscope/compactor /var/lib/pyroscope/scratch
+chown -R 10001:10001 /data/metastore /var/lib/pyroscope
+# Certificates live on the volume, so a replaced instance keeps them (Let's Encrypt rate limits).
+if [ ! -L /etc/letsencrypt ]; then rm -rf /etc/letsencrypt; ln -s /data/letsencrypt /etc/letsencrypt; fi
+
+# --- Pyroscope ----------------------------------------------------------------------------------------
+mkdir -p /etc/pyroscope
+cat > /etc/pyroscope/config.yaml <<CFG
+target: all
+architecture_storage: v2
+multitenancy_enabled: true
+analytics:
+  reporting_enabled: false
+self_profiling:
+  disable_push: true
+server:
+  http_listen_address: 127.0.0.1
+  http_listen_port: 4040
+  grpc_listen_address: 127.0.0.1
+  http_server_read_timeout: 1m
+  http_server_write_timeout: 1m
+admin_server:
+  mode: exclusive
+  http_listen_address: 127.0.0.1
+memberlist:
+  bind_addr: [127.0.0.1]
+  advertise_addr: 127.0.0.1
+storage:
+  backend: s3
+  prefix: data
+  s3:
+    bucket_name: $BUCKET
+    endpoint: s3.$REGION.amazonaws.com
+    region: $REGION
+metastore:
+  data_dir: /data-metastore/data
+  raft:
+    dir: /data-metastore/raft
+    snapshots_dir: /data-metastore/raft
+compaction_worker:
+  temp_dir: /data-compactor
+query_backend:
+  client_timeout: 2m
+limits:
+  retention_period: ${retention_period}
+  max_query_lookback: 0
+  max_query_length: 31d
+  # Rate and burst count uncompressed bytes: a perf run's shards push in parallel at the end of a window.
+  ingestion_rate_mb: 16
+  ingestion_burst_size_mb: 64
+  max_profile_size_bytes: 16777216
+  max_profile_stacktrace_samples: 64000
+  max_label_names_per_series: 40
+CFG
+
+cat > /etc/systemd/system/pyroscope.service <<UNIT
+[Unit]
+Description=Grafana Pyroscope (single binary, v2 storage on S3)
+After=docker.service network-online.target data.mount
+Requires=docker.service
+ConditionPathExists=/data/.ultra-pyroscope
+# touch /data/.hold to keep Pyroscope stopped (restores); the watchdog leaves a stopped unit alone.
+ConditionPathExists=!/data/.hold
+
+[Service]
+Restart=always
+RestartSec=10
+TimeoutStopSec=90
+ExecStartPre=-/usr/bin/docker rm -f pyroscope
+# Pulled at bootstrap; only pulled again if missing, so a registry outage or rate limit can't block a restart.
+ExecStartPre=/bin/sh -c 'docker image inspect $IMAGE >/dev/null 2>&1 || docker pull $IMAGE'
+# No capabilities (with an empty bounding set, the binary's file capability grants nothing; the image's
+# exec fails under no-new-privileges, so that flag isn't used). The v2 components register in the internal rings at 127.0.0.1: gRPC only listens there, and the default
+# (the host's private IP) makes pushes fail with "no segment writer instances available".
+ExecStart=/usr/bin/docker run --rm --name pyroscope --network host --user 10001:10001 \\
+  --cap-drop ALL --memory 14g \\
+  -e GOMEMLIMIT=12GiB \\
+  -v /etc/pyroscope/config.yaml:/etc/pyroscope/config.yaml:ro \\
+  -v /data/metastore:/data-metastore \\
+  -v /var/lib/pyroscope/compactor:/data-compactor \\
+  -v /var/lib/pyroscope/scratch:/data \\
+  --log-driver awslogs --log-opt awslogs-region=$REGION --log-opt awslogs-group=${log_group_pyro} \\
+  --log-opt mode=non-blocking --log-opt max-buffer-size=8m \\
+  $IMAGE -config.file=/etc/pyroscope/config.yaml \\
+  -segment-writer.lifecycler.addr=127.0.0.1 -distributor.ring.instance-addr=127.0.0.1 \\
+  -query-frontend.instance-addr=127.0.0.1 -overrides-exporter.ring.instance-addr=127.0.0.1
+ExecStop=/usr/bin/docker stop -t 60 pyroscope
+
+[Install]
+WantedBy=multi-user.target
+UNIT
+
+for _ in 1 2 3 4 5; do docker pull -q "$IMAGE" && break; sleep 15; done
+
+# --- nginx: TLS, per-role credentials, path allowlist -------------------------------------------------
+mkdir -p /etc/systemd/system/nginx.service.d
+cat > /etc/systemd/system/nginx.service.d/ultra-pyroscope.conf <<'UNIT'
+[Unit]
+RequiresMountsFor=/data
+[Service]
+Restart=on-failure
+RestartSec=5
+UNIT
+mkdir -p /etc/nginx/htpasswd /var/www/acme /etc/nginx/ultra
+for role in push read; do
+  [ -e /etc/nginx/htpasswd/$role ] || install -m 0640 -o root -g nginx /dev/null /etc/nginx/htpasswd/$role
+done
+cat > /usr/local/sbin/pyroscope-credentials <<'SCRIPT'
+#!/bin/bash
+# The htpasswd lines come from SSM SecureString parameters, written out of band. Only SHA-512 crypt lines
+# for the role's own users are accepted. A missing parameter empties the file (every request then fails
+# authentication: closed; deleting the parameter revokes); any other SSM error keeps the current file.
+set -u
+. /etc/default/ultra-pyroscope
+changed=0
+for role in push read; do
+  f=/etc/nginx/htpasswd/$role
+  if ! new=$(aws ssm get-parameter --region "$REGION" --with-decryption --name "$SSM_PREFIX/htpasswd/$role" \
+    --query Parameter.Value --output text 2>/tmp/pyroscope-credentials.err); then
+    if grep -q ParameterNotFound /tmp/pyroscope-credentials.err; then new=""; else
+      echo "pyroscope-credentials: $role: SSM error, keeping the current file: $(head -c 300 /tmp/pyroscope-credentials.err)"
+      continue
+    fi
+  fi
+  if [ -n "$new" ] && printf '%s\n' "$new" | grep -qvE "^$role-[12]:\\\$6\\\$[./A-Za-z0-9]{1,16}\\\$[./A-Za-z0-9]{86}\$"; then
+    echo "pyroscope-credentials: $role: rejected (only $role-1/$role-2 with SHA-512 crypt hashes), keeping the current file"
+    continue
+  fi
+  if [ "$new" != "$(cat "$f" 2>/dev/null)" ]; then
+    printf '%s\n' "$new" | sed '/^$/d' > "$f.tmp" && chown root:nginx "$f.tmp" && chmod 0640 "$f.tmp" && mv "$f.tmp" "$f"
+    changed=1
+  fi
+done
+rm -f /tmp/pyroscope-credentials.err
+if [ "$changed" = 1 ]; then nginx -t -q && systemctl reload nginx; fi
+exit 0
+SCRIPT
+chmod 0755 /usr/local/sbin/pyroscope-credentials
+
+rm -f /etc/nginx/conf.d/default.conf /etc/nginx/sites-enabled/default
+cat > /etc/nginx/conf.d/00-acme.conf <<NGX
+server_tokens off;
+server {
+    listen 80 default_server;
+    location ^~ /.well-known/acme-challenge/ { root /var/www/acme; }
+    location = /healthz { access_log off; return 200 "ok\n"; }
+    location / { return 301 https://$HOST_NAME\$request_uri; }
+}
+NGX
+
+READ_ALLOW=""
+%{ for cidr in read_allowed_cidrs ~}
+READ_ALLOW="$READ_ALLOW        allow ${cidr};"$'\n'
+%{ endfor ~}
+cat > /etc/nginx/ultra/pyroscope-443.conf <<NGX
+# Credential -> tenant. An unknown user maps to "" and the header is dropped: Pyroscope rejects (closed).
+map \$remote_user \$pyro_tenant {
+    default "";
+    push-1  ultra;
+    push-2  ultra;
+    read-1  ultra;
+    read-2  ultra;
+}
+# Limits key on the client IP: \$remote_user isn't verified before auth_basic runs.
+limit_req_zone  \$binary_remote_addr zone=push_ip:10m rate=20r/s;
+limit_req_zone  \$binary_remote_addr zone=read_ip:10m rate=20r/s;
+limit_conn_zone \$binary_remote_addr zone=conn_ip:10m;
+limit_req_status 429;
+limit_conn_status 429;
+upstream pyroscope { server 127.0.0.1:4040; keepalive 16; }
+
+server {
+    listen 443 ssl;
+    http2 on;
+    server_name $HOST_NAME;
+    ssl_certificate     /etc/letsencrypt/live/$HOST_NAME/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/$HOST_NAME/privkey.pem;
+    # Mozilla "intermediate".
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305;
+    ssl_prefer_server_ciphers off;
+    ssl_session_tickets off;
+    add_header Strict-Transport-Security "max-age=31536000" always;
+    client_body_timeout 15s;
+    client_header_timeout 10s;
+    limit_conn conn_ip 64;
+
+    proxy_http_version 1.1;
+    proxy_set_header Connection    "";
+    proxy_set_header Host          \$host;
+    proxy_set_header X-Scope-OrgID \$pyro_tenant;
+    proxy_set_header Authorization "";
+
+    location = /healthz { access_log off; return 200 "ok\n"; }
+
+    # Push: Alloy (pyroscope.write) and folded/pprof uploads (/ingest). Push credentials only.
+    location ~ ^/(push\.v1\.PusherService/Push|ingest)\$ {
+        limit_except POST { deny all; }
+        auth_basic           "pyroscope-push";
+        auth_basic_user_file /etc/nginx/htpasswd/push;
+        limit_req zone=push_ip burst=100 nodelay;
+        client_max_body_size 16m;
+        proxy_pass http://pyroscope;
+    }
+
+    # Read: the Grafana datasource. Read credentials only, and only from the allowed sources.
+    location ~ ^/(querier\.v1\.QuerierService/[A-Za-z]+|settings\.v1\.SettingsService/Get|capabilities\.v1\.FeatureFlagsService/[A-Za-z]+)\$ {
+$READ_ALLOW        deny all;
+        auth_basic           "pyroscope-read";
+        auth_basic_user_file /etc/nginx/htpasswd/read;
+        limit_req  zone=read_ip burst=100 nodelay;
+        client_max_body_size 1m;
+        proxy_read_timeout 130s;
+        proxy_pass http://pyroscope;
+    }
+
+    # Everything else (UI, admin, debug, settings writes) is not served.
+    location / { return 403; }
+}
+# Another (or no) name: no handshake; the right name with another Host header: 421.
+server { listen 443 ssl default_server; ssl_reject_handshake on; return 421; }
+NGX
+
+cat > /usr/local/sbin/pyroscope-tls <<'SCRIPT'
+#!/bin/bash
+# Gets the certificate once the A record points here (retried by a timer), then enables the 443 server.
+# Renewals: certbot's own timer, with the saved webroot and the deploy hook.
+set -u
+. /etc/default/ultra-pyroscope
+cert=/etc/letsencrypt/live/$HOST_NAME/fullchain.pem
+if [ ! -s "$cert" ]; then
+  # Only once the name resolves to this server: failed validations are rate limited (5 per hour).
+  token=$(curl -s -m 2 -X PUT http://169.254.169.254/latest/api/token -H "X-aws-ec2-metadata-token-ttl-seconds: 60")
+  myip=$(curl -s -m 2 -H "X-aws-ec2-metadata-token: $token" http://169.254.169.254/latest/meta-data/public-ipv4)
+  getent ahostsv4 "$HOST_NAME" | awk '{print $1}' | grep -qx "$myip" || { echo "pyroscope-tls: $HOST_NAME doesn't resolve to $myip yet"; exit 0; }
+  certbot certonly --webroot -w /var/www/acme -d "$HOST_NAME" %{ if acme_email != "" }--email "${acme_email}"%{ else }--register-unsafely-without-email%{ endif } --agree-tos -n --keep \
+    --deploy-hook "systemctl reload nginx" || exit 0
+fi
+if [ -s "$cert" ] && [ ! -e /etc/nginx/conf.d/10-pyroscope.conf ]; then
+  ln -s /etc/nginx/ultra/pyroscope-443.conf /etc/nginx/conf.d/10-pyroscope.conf
+  if nginx -t; then systemctl reload nginx; else
+    echo "pyroscope-tls: the 443 server fails nginx -t; left disabled"
+    rm -f /etc/nginx/conf.d/10-pyroscope.conf
+    exit 1
+  fi
+fi
+SCRIPT
+chmod 0755 /usr/local/sbin/pyroscope-tls
+
+# --- Raft snapshot backups and the health watchdog -------------------------------------------------
+cat > /usr/local/sbin/pyroscope-backup <<'SCRIPT'
+#!/bin/bash
+# Raft snapshots to S3 (restore: -metastore.raft.snapshots-import-dir). Complements the hourly EBS
+# snapshots; raft only snapshots after 8192 new log entries, so this stays empty for the first hours.
+set -u
+. /etc/default/ultra-pyroscope
+[ -d /data/metastore/raft/snapshots ] || exit 0
+aws s3 sync --region "$REGION" --only-show-errors /data/metastore/raft/snapshots "s3://$BUCKET/backups/raft-snapshots/" --exclude "*.tmp/*"
+SCRIPT
+cat > /usr/local/sbin/pyroscope-watchdog <<'SCRIPT'
+#!/bin/bash
+# Every minute, three metrics (namespace UltraPyroscope):
+#   Ready            1 when Pyroscope is ready and nginx serves /healthz (on 443 once the certificate is
+#                    there, on 80 before);
+#   CertDaysLeft     days the certificate has left (0 before it exists);
+#   DiscardedSamples the increase of pyroscope_discarded_samples_total (all reasons and tenants).
+# A running Pyroscope that isn't ready for 5 checks in a row, after 5 minutes up, is restarted (it can get
+# stuck, upstream #5432); a stopped one (by hand, or held with /data/.hold) is left alone.
+set -u
+. /etc/default/ultra-pyroscope
+fails=/run/pyroscope-watchdog.fails
+last=/run/pyroscope-watchdog.discarded
+token=$(curl -s -m 2 -X PUT http://169.254.169.254/latest/api/token -H "X-aws-ec2-metadata-token-ttl-seconds: 60")
+iid=$(curl -s -m 2 -H "X-aws-ec2-metadata-token: $token" http://169.254.169.254/latest/meta-data/instance-id)
+case "$iid" in i-*) ;; *) echo "pyroscope-watchdog: no instance id from IMDS"; exit 1 ;; esac
+put() { aws cloudwatch put-metric-data --region "$REGION" --namespace UltraPyroscope --metric-name "$1" \
+  --dimensions "InstanceId=$iid" --value "$2" || true; }
+
+pyro=0; curl -sf -m 5 http://127.0.0.1:4042/ready >/dev/null && pyro=1
+cert=/etc/letsencrypt/live/$HOST_NAME/fullchain.pem
+days=0
+if end=$(openssl x509 -enddate -noout -in "$cert" 2>/dev/null); then
+  for d in $(seq 0 90); do openssl x509 -checkend $(( (d + 1) * 86400 )) -noout -in "$cert" >/dev/null || break; days=$(( d + 1 )); done
+  edge=0; curl -sf -m 5 --resolve "$HOST_NAME:443:127.0.0.1" "https://$HOST_NAME/healthz" >/dev/null && edge=1
+else
+  edge=0; curl -sf -m 5 http://127.0.0.1/healthz >/dev/null && edge=1
+fi
+put Ready $(( pyro && edge ))
+put CertDaysLeft "$days"
+
+if [ "$pyro" = 1 ]; then echo 0 > "$fails"
+elif [ "$(systemctl is-active pyroscope)" = active ]; then
+  up=$(( $(awk '{printf "%d", $1}' /proc/uptime) - $(systemctl show pyroscope -p ActiveEnterTimestampMonotonic --value) / 1000000 ))
+  n=$(( $(cat "$fails" 2>/dev/null || echo 0) + 1 )); echo "$n" > "$fails"
+  if [ "$n" -ge 5 ] && [ "$up" -ge 300 ]; then
+    echo "$(date -u +%FT%TZ) not ready 5 times after $up s up: restarting" >> /var/log/pyroscope-watchdog.log
+    systemctl restart pyroscope; echo 0 > "$fails"
+  fi
+fi
+
+if [ "$pyro" = 1 ]; then
+  cur=$(curl -sf -m 5 http://127.0.0.1:4042/metrics | awk '/^pyroscope_discarded_samples_total/ {s += $NF} END {printf "%d", s}')
+  prev=$(cat "$last" 2>/dev/null || echo "$cur")
+  delta=$(( cur - prev )); [ "$delta" -lt 0 ] && delta=$cur # restarted
+  echo "$cur" > "$last"
+  put DiscardedSamples "$delta"
+fi
+SCRIPT
+chmod 0755 /usr/local/sbin/pyroscope-backup /usr/local/sbin/pyroscope-watchdog
+
+for job in credentials:5min tls:10min backup:15min watchdog:1min; do
+  name=$${job%%:*}; every=$${job##*:}
+  cat > /etc/systemd/system/pyroscope-$name.service <<UNIT
+[Unit]
+Description=Pyroscope $name
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/pyroscope-$name
+UNIT
+  cat > /etc/systemd/system/pyroscope-$name.timer <<UNIT
+[Unit]
+Description=Pyroscope $name every $every
+[Timer]
+OnBootSec=1min
+OnUnitActiveSec=$every
+[Install]
+WantedBy=timers.target
+UNIT
+done
+
+# --- CloudWatch agent: memory and disk metrics, nginx and bootstrap logs ------------------------------
+# Metrics and logs only: a failure here mustn't leave the server half built.
+if curl -fsSL https://amazoncloudwatch-agent.s3.amazonaws.com/ubuntu/amd64/latest/amazon-cloudwatch-agent.deb -o /tmp/cwa.deb &&
+  dpkg -i /tmp/cwa.deb; then CWA=1; else CWA=0; echo "server-init: CloudWatch agent install failed"; fi
+rm -f /tmp/cwa.deb
+mkdir -p /opt/aws/amazon-cloudwatch-agent/etc
+cat > /opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json <<JSON
+{
+  "agent": { "metrics_collection_interval": 60 },
+  "metrics": {
+    "append_dimensions": { "InstanceId": "\$${aws:InstanceId}" },
+    "aggregation_dimensions": [["InstanceId"], ["InstanceId", "path"]],
+    "metrics_collected": {
+      "mem":  { "measurement": ["mem_used_percent"] },
+      "disk": { "measurement": ["used_percent"], "resources": ["/", "/data"], "drop_device": true }
+    }
+  },
+  "logs": { "logs_collected": { "files": { "collect_list": [
+    { "file_path": "/var/log/nginx/access.log", "log_group_name": "${log_group_nginx}", "log_stream_name": "{instance_id}/access" },
+    { "file_path": "/var/log/nginx/error.log", "log_group_name": "${log_group_nginx}", "log_stream_name": "{instance_id}/error" },
+    { "file_path": "/var/log/server-init.log", "log_group_name": "${log_group_system}", "log_stream_name": "{instance_id}/server-init" },
+    { "file_path": "/var/log/pyroscope-watchdog.log", "log_group_name": "${log_group_system}", "log_stream_name": "{instance_id}/watchdog" }
+  ] } } }
+}
+JSON
+[ "$CWA" = 1 ] && { /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -s \
+  -c file:/opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json || echo "server-init: CloudWatch agent didn't start"; }
+
+# --- Start ------------------------------------------------------------------------------------------
+systemctl daemon-reload
+/usr/local/sbin/pyroscope-credentials || true
+nginx -t
+systemctl enable nginx
+systemctl restart nginx
+systemctl enable --now pyroscope.service
+for name in credentials tls backup watchdog; do systemctl enable --now pyroscope-$name.timer; done
+/usr/local/sbin/pyroscope-tls || true
+echo "server-init: done $(date -u +%FT%TZ)"
