@@ -1,0 +1,160 @@
+#!/bin/bash
+# Bootstrap of the e2e bench runner host: tools, and ${runner_count} GitHub Actions runners (actions/runner
+# ${runner_version}) installed but NOT registered, each as its own user (runner01, runner02, ...) with a
+# private home, so concurrent jobs can't read each other's environment, temp files or caches. Jobs can't
+# reach the instance metadata service (an iptables owner rule on the `runners` group). Registration is the
+# separate step in README.md: an admin puts a short-lived registration token in the SSM SecureString
+# ${ssm_prefix}/registration and runs /opt/actions-runner/register.sh through Session Manager.
+# Runs once, at first boot.
+set -euo pipefail
+exec > >(tee -a /var/log/runner-init.log) 2>&1
+echo "== runner-init $(date -u +%FT%TZ)"
+
+export DEBIAN_FRONTEND=noninteractive
+apt-get update -q
+# What the workflows run besides their own setup-* actions: git, make, python3 (+venv), jq, curl, unzip.
+apt-get install -y -q --no-install-recommends \
+  ca-certificates curl git jq unzip zip tar gzip make build-essential python3 python3-venv iptables
+snap wait system seed.loaded
+snap list aws-cli >/dev/null 2>&1 || snap install aws-cli --classic
+
+# Jobs run for hours or days: never restart a runner service or reboot under them.
+mkdir -p /etc/needrestart/conf.d
+cat > /etc/needrestart/conf.d/actions-runner.conf <<'NR'
+$nrconf{override_rc}{qr(^actions\.runner\.)} = 0;
+NR
+cat > /etc/apt/apt.conf.d/52runner-no-reboot <<'APT'
+Unattended-Upgrade::Automatic-Reboot "false";
+APT
+
+# No job may use the instance role: block the metadata service for every runner user (the SSM agent
+# runs as root and keeps it). Re-applied at every boot.
+getent group runners >/dev/null || groupadd --system runners
+cat > /etc/systemd/system/runner-imds-block.service <<'UNIT'
+[Unit]
+Description=Block the EC2 metadata service for GitHub runner users
+DefaultDependencies=no
+After=local-fs.target
+Before=network-pre.target
+Wants=network-pre.target
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+# runners is each runner user's supplementary group, hence --suppl-groups.
+ExecStart=/bin/sh -c 'r="OUTPUT -d 169.254.169.254 -m owner --gid-owner runners --suppl-groups -j REJECT"; iptables -C $r 2>/dev/null || iptables -I $r'
+[Install]
+WantedBy=sysinit.target
+UNIT
+systemctl daemon-reload
+systemctl enable --now runner-imds-block.service
+
+base=/opt/actions-runner
+dist="$base/dist/actions-runner-linux-x64-${runner_version}.tar.gz"
+mkdir -p "$base/dist"
+if [ ! -s "$dist" ]; then
+  curl -fsSL -o "$dist.part" \
+    "https://github.com/actions/runner/releases/download/v${runner_version}/actions-runner-linux-x64-${runner_version}.tar.gz"
+  echo "${runner_sha256}  $dist.part" | sha256sum -c -
+  mv "$dist.part" "$dist"
+fi
+
+# After each job, empty its work dir except the runner's tool and action caches, so the runners don't
+# accumulate checkouts and build output on the shared disk. Only ever inside /opt/actions-runner/rNN/_work.
+cat > "$base/job-completed.sh" <<'HOOK'
+#!/bin/bash
+set -u
+work="$${RUNNER_WORKSPACE:-}"
+[ -n "$work" ] || exit 0
+root=$(realpath -e "$(dirname "$work")" 2>/dev/null) || exit 0
+[[ "$root" =~ ^/opt/actions-runner/r[0-9][0-9]/_work$ ]] || exit 0
+find "$root" -mindepth 1 -maxdepth 1 ! -name _tool ! -name _actions -exec chmod -R u+w {} + 2>/dev/null || true
+find "$root" -mindepth 1 -maxdepth 1 ! -name _tool ! -name _actions -exec rm -rf {} + 2>/dev/null || true
+# Credentials a job may leave in this runner user's home, so they don't reach its next job.
+home=$(getent passwd "$(id -un)" | cut -d: -f6)
+case "$home" in /home/runner[0-9][0-9]) rm -rf "$home/.kube" "$home/.aws" "$home/.docker/config.json" \
+  "$home/.git-credentials" "$home/.netrc" "$home/.config/gh" 2>/dev/null || true ;; esac
+exit 0
+HOOK
+chmod 0755 "$base/job-completed.sh"
+
+for i in $(seq 1 ${runner_count}); do
+  n=$(printf %02d "$i")
+  u="runner$n"
+  d="$base/r$n"
+  id "$u" >/dev/null 2>&1 || useradd --create-home --shell /bin/bash --groups runners "$u"
+  chmod 0700 "/home/$u"
+  if [ ! -x "$d/config.sh" ]; then
+    mkdir -p "$d"
+    tar -xzf "$dist" -C "$d"
+  fi
+  [ -f "$d/.env" ] || printf 'ACTIONS_RUNNER_HOOK_JOB_COMPLETED=%s\n' "$base/job-completed.sh" > "$d/.env"
+  # Owned by its user: the runner updates itself in place (GitHub stops sending jobs to stale runners).
+  chown -R "$u:$u" "$d"
+  chmod 0750 "$d"
+done
+# The runner's own OS dependencies (libicu and friends), once. If its script doesn't know this Ubuntu
+# release, install them directly; the check below fails the bootstrap if the runner still can't start.
+"$base/r01/bin/installdependencies.sh" ||
+  apt-get install -y -q --no-install-recommends libkrb5-3 zlib1g libssl3t64 liblttng-ust1t64 libicu78
+sudo -u runner01 "$base/r01/bin/Runner.Listener" --version
+
+# Registration: reads {"url","token","labels","name_prefix"} from the SecureString, registers and starts
+# every runner not registered yet, and deletes the parameter when it exits. The token (short-lived, 1 h,
+# can only register runners) reaches config.sh through its environment, not its command line.
+cat > "$base/register.sh" <<'REG'
+#!/bin/bash
+set -euo pipefail
+[ "$(id -u)" = 0 ] || { echo "run as root" >&2; exit 1; }
+if pgrep -f 'Runner.Worker' >/dev/null; then
+  echo "a job is running; register when the runners are idle" >&2
+  exit 1
+fi
+param="__SSM_PREFIX__/registration"
+trap 'aws ssm delete-parameter --region __REGION__ --name "$param" >/dev/null 2>&1 || true' EXIT
+cfg=$(aws ssm get-parameter --region __REGION__ --name "$param" --with-decryption --query Parameter.Value --output text)
+url=$(jq -r .url <<<"$cfg")
+labels=$(jq -r '.labels // "self-hosted"' <<<"$cfg")
+prefix=$(jq -r '.name_prefix // "e2e-bench"' <<<"$cfg")
+[[ "$prefix" =~ ^[A-Za-z0-9-]{1,40}$ ]] || { echo "name_prefix must be [A-Za-z0-9-]{1,40}" >&2; exit 1; }
+case "$url" in https://github.com/*) ;; *) echo "registration url must be https://github.com/..." >&2; exit 1 ;; esac
+ACTIONS_RUNNER_INPUT_TOKEN=$(jq -r .token <<<"$cfg")
+export ACTIONS_RUNNER_INPUT_TOKEN
+for d in /opt/actions-runner/r[0-9][0-9]; do
+  n=$${d##*/r}
+  u="runner$n"
+  if [ ! -f "$d/.runner" ]; then
+    (cd "$d" && runuser -u "$u" -- ./config.sh --unattended --url "$url" \
+      --name "$prefix-$n" --labels "$labels" --work _work --replace)
+  fi
+  # The unit is written here, not by the runner's svc.sh: root never runs a file a job could have edited.
+  unit="actions.runner.$prefix-$n.service"
+  cat > "/etc/systemd/system/$unit" <<UNIT
+[Unit]
+Description=GitHub Actions runner $prefix-$n
+Requires=runner-imds-block.service
+After=network-online.target runner-imds-block.service
+Wants=network-online.target
+[Service]
+User=$u
+WorkingDirectory=$d
+ExecStart=$d/bin/runsvc.sh
+KillMode=process
+KillSignal=SIGTERM
+TimeoutStopSec=5min
+Restart=always
+LimitNOFILE=65536
+PrivateTmp=yes
+ProtectProc=invisible
+[Install]
+WantedBy=multi-user.target
+UNIT
+  systemctl daemon-reload
+  systemctl enable --now "$unit"
+done
+unset ACTIONS_RUNNER_INPUT_TOKEN
+echo "registered: $(ls /opt/actions-runner/r[0-9][0-9]/.runner | wc -l) runners"
+REG
+sed -i -e "s|__SSM_PREFIX__|${ssm_prefix}|" -e "s|__REGION__|${region}|g" "$base/register.sh"
+chmod 0700 "$base/register.sh"
+
+echo "== runner-init done: ${runner_count} runners installed, not registered"
