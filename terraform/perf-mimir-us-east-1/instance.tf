@@ -31,12 +31,14 @@ resource "aws_instance" "server" {
   }
 
   # The bootstrap is idempotent and keeps nothing on the root disk that matters (the TSDB, the WAL and the
-  # certificates are on the data volume), so a changed bootstrap replaces the instance.
-  user_data_base64 = base64gzip(templatefile("${path.module}/server-init.sh.tftpl", {
+  # certificates are on the data volume), so a changed bootstrap replaces the instance. Whole-line comments
+  # (not #!) are stripped to stay under EC2's 16 KB user-data limit: the template is the documented copy.
+  user_data_base64 = base64gzip(replace(templatefile("${path.module}/server-init.sh.tftpl", {
     region                     = var.region
     bucket                     = aws_s3_bucket.blocks.id
     mimir_version              = var.mimir_version
-    mimir_sha256               = var.mimir_sha256
+    mimir_sha256_amd64         = var.mimir_sha256["amd64"]
+    mimir_sha256_arm64         = var.mimir_sha256["arm64"]
     hostname                   = var.hostname
     acme_email                 = var.acme_email
     nginx_channel              = var.nginx_channel
@@ -56,7 +58,7 @@ resource "aws_instance" "server" {
     log_group_mimir            = aws_cloudwatch_log_group.mimir.name
     log_group_nginx            = aws_cloudwatch_log_group.nginx.name
     log_group_system           = aws_cloudwatch_log_group.system.name
-  }))
+  }), "/(?m)^[ \\t]*#([^!\\n][^\\n]*)?\\n/", ""))
   user_data_replace_on_change = true
 
   tags = local.tags
@@ -74,6 +76,7 @@ resource "aws_ebs_volume" "data" {
   size              = var.data_volume_size_gb
   type              = "gp3"
   encrypted         = true
+  final_snapshot    = true
   tags              = merge(local.tags, { Name = "${local.name}-data" })
 
   lifecycle {

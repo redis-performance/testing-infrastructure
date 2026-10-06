@@ -175,3 +175,56 @@ resource "aws_cloudwatch_metric_alarm" "series" {
   ok_actions          = [aws_sns_topic.alarms.arn]
   tags                = local.tags
 }
+
+# A credential line dropped (malformed, or its tenant isn't in `tenants`), or tenant overrides not in force
+# (refused by the check or by Mimir). /var/log/perf-mimir-ops.log says which.
+resource "aws_cloudwatch_metric_alarm" "config_rejected" {
+  alarm_name          = "${local.name}-config-rejected"
+  namespace           = "PerfMimir"
+  metric_name         = "ConfigRejected"
+  dimensions          = { InstanceId = aws_instance.server.id }
+  statistic           = "Maximum"
+  period              = 300
+  evaluation_periods  = 2
+  threshold           = 0
+  comparison_operator = "GreaterThanThreshold"
+  treat_missing_data  = "notBreaching"
+  alarm_actions       = [aws_sns_topic.alarms.arn]
+  ok_actions          = [aws_sns_topic.alarms.arn]
+  tags                = local.tags
+}
+
+# The data volume isn't snapshotted because S3 has every shipped block: these two say when that stops being
+# true. Block uploads failing in two 15-minute windows in a row (one-off S3 errors are retried)...
+resource "aws_cloudwatch_metric_alarm" "shipper" {
+  alarm_name          = "${local.name}-block-upload-failures"
+  namespace           = "PerfMimir"
+  metric_name         = "ShipperFailures"
+  dimensions          = { InstanceId = aws_instance.server.id }
+  statistic           = "Sum"
+  period              = 900
+  evaluation_periods  = 2
+  threshold           = 0
+  comparison_operator = "GreaterThanThreshold"
+  treat_missing_data  = "notBreaching"
+  alarm_actions       = [aws_sns_topic.alarms.arn]
+  ok_actions          = [aws_sns_topic.alarms.arn]
+  tags                = local.tags
+}
+
+# ... and the compactor (hourly) not having finished a run for 6 hours.
+resource "aws_cloudwatch_metric_alarm" "compactor" {
+  alarm_name          = "${local.name}-compactor-stale"
+  namespace           = "PerfMimir"
+  metric_name         = "CompactorHoursSinceSuccess"
+  dimensions          = { InstanceId = aws_instance.server.id }
+  statistic           = "Maximum"
+  period              = 900
+  evaluation_periods  = 2
+  threshold           = 6
+  comparison_operator = "GreaterThanThreshold"
+  treat_missing_data  = "notBreaching"
+  alarm_actions       = [aws_sns_topic.alarms.arn]
+  ok_actions          = [aws_sns_topic.alarms.arn]
+  tags                = local.tags
+}

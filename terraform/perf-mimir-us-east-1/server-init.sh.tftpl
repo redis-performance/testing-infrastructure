@@ -12,7 +12,12 @@ HOST_NAME="${hostname}"
 SSM_PREFIX="${ssm_prefix}"
 VOLUME_ID="${data_volume}"
 MIMIR_VERSION="${mimir_version}"
-MIMIR_SHA256="${mimir_sha256}"
+ARCH=$(dpkg --print-architecture) # amd64 or arm64
+case "$ARCH" in
+  amd64) MIMIR_SHA256="${mimir_sha256_amd64}"; AWSCLI_ARCH=x86_64 ;;
+  arm64) MIMIR_SHA256="${mimir_sha256_arm64}"; AWSCLI_ARCH=aarch64 ;;
+  *) echo "server-init: unsupported architecture $ARCH"; exit 1 ;;
+esac
 MAX_SERIES_TOTAL="${max_series_total}"
 
 # Settings for the helper scripts below (quoted heredocs: they read these at run time).
@@ -31,7 +36,7 @@ DPkg::Lock::Timeout "600";
 Acquire::Retries "5";
 APT
 apt-get update -y
-apt-get install -y --no-install-recommends certbot jq unzip curl openssl gnupg ca-certificates unattended-upgrades python3-yaml logrotate
+apt-get install -y --no-install-recommends certbot unzip curl openssl gnupg ca-certificates unattended-upgrades python3-yaml logrotate
 
 # --- nginx from nginx.org (${nginx_channel}) ----------------------------------------------------------
 # The signing keys are pinned by fingerprint (https://nginx.org/en/linux_packages.html); apt prefers this
@@ -56,7 +61,7 @@ nginx -v
 
 # AWS CLI v2 (SSM, the health metrics).
 if ! command -v aws >/dev/null; then
-  curl -fsSL https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip -o /tmp/awscli.zip
+  curl -fsSL "https://awscli.amazonaws.com/awscli-exe-linux-$AWSCLI_ARCH.zip" -o /tmp/awscli.zip
   unzip -q /tmp/awscli.zip -d /tmp && /tmp/aws/install --update && rm -rf /tmp/aws /tmp/awscli.zip
 fi
 
@@ -74,6 +79,8 @@ FRESH=0
 blk=0; blkid -p "$DEV" >/dev/null 2>&1 || blk=$?
 [ "$blk" = 0 ] || [ "$blk" = 2 ] || { echo "server-init: blkid failed ($blk) on $DEV"; exit 1; }
 if [ "$blk" = 2 ]; then
+  # A second guard: a new EBS volume reads as zeros; anything else isn't formatted on blkid's word alone.
+  cmp -s -n 1048576 "$DEV" /dev/zero || { echo "server-init: $DEV has no filesystem but isn't blank; not formatting it"; exit 1; }
   echo "server-init: new data volume, formatting"
   mkfs.ext4 -q -L mimirdata "$DEV"
   FRESH=1
@@ -86,6 +93,9 @@ echo "UUID=$UUID /data ext4 defaults,nofail,noatime 0 2" >> /etc/fstab
 systemctl daemon-reload
 mountpoint -q /data || mount /data
 resize2fs "$(readlink -f "$DEV")" || true # a grown volume
+# A volume formatted by an earlier run that failed before writing the sentinel: ours, and still empty.
+if [ "$FRESH" = 0 ] && [ ! -e /data/.perf-mimir ] && [ "$(blkid -p -s LABEL -o value "$DEV")" = mimirdata ] &&
+  [ "$(ls -A /data)" = lost+found ]; then FRESH=1; fi
 if [ "$FRESH" = 1 ]; then
   echo "$SENTINEL" > /data/.perf-mimir
 elif [ "$(cat /data/.perf-mimir 2>/dev/null)" != "$SENTINEL" ]; then
@@ -107,10 +117,9 @@ if [ ! -L /etc/letsencrypt ]; then rm -rf /etc/letsencrypt; ln -s /data/letsencr
 BIN=/usr/local/lib/mimir/mimir-$MIMIR_VERSION
 mkdir -p /usr/local/lib/mimir
 if ! echo "$MIMIR_SHA256  $BIN" | sha256sum -c --status 2>/dev/null; then
-  for _ in 1 2 3 4 5; do
-    curl -fsSL -o "$BIN.download" "https://github.com/grafana/mimir/releases/download/mimir-$MIMIR_VERSION/mimir-linux-amd64" && break
-    sleep 15
-  done
+  curl -fsSL --connect-timeout 10 --max-time 900 --retry 8 --retry-delay 15 --retry-all-errors -o "$BIN.download" \
+    "https://github.com/grafana/mimir/releases/download/mimir-$MIMIR_VERSION/mimir-linux-$ARCH" ||
+    { echo "server-init: mimir $MIMIR_VERSION download failed (re-run the bootstrap: README, planned replacement)"; exit 1; }
   echo "$MIMIR_SHA256  $BIN.download" | sha256sum -c - || { echo "server-init: mimir $MIMIR_VERSION checksum mismatch"; rm -f "$BIN.download"; exit 1; }
   install -m 0755 "$BIN.download" "$BIN" && rm -f "$BIN.download"
 fi
@@ -148,10 +157,12 @@ blocks_storage:
     wal_compression_enabled: true
   bucket_store:
     sync_dir: /data/mimir/tsdb-sync
+    # A long-range query opens one index header per day per tenant: load them 16 at a time, not 4.
+    index_header:
+      lazy_loading_concurrency: 16
+# The ruler is part of -target=all; its API isn't served (nginx), so this stays empty.
 ruler_storage:
   storage_prefix: ruler
-alertmanager_storage:
-  storage_prefix: alertmanager
 compactor:
   data_dir: /data/mimir/compactor
   sharding_ring:
@@ -176,9 +187,13 @@ store_gateway:
     replication_factor: 1
     instance_addr: 127.0.0.1
 query_scheduler:
+  # A query is split into many sub-queries (by day, then sharded): room for a dashboard full of them.
+  max_outstanding_requests_per_tenant: 800
   ring:
     instance_addr: 127.0.0.1
 querier:
+  # Queries share the process (and its memory) with ingestion: fewer at a time, each bounded (limits below).
+  max_concurrent: 4
   ring:
     instance_addr: 127.0.0.1
 frontend:
@@ -195,17 +210,16 @@ limits:
   max_label_name_length: ${max_label_name_length}
   max_label_value_length: ${max_label_value_length}
   out_of_order_time_window: ${out_of_order_time_window}
+  # Query guards, so one wide query can't take the process (and ingestion) down; overridable per tenant.
+  max_estimated_memory_consumption_per_query: 2147483648
+  max_fetched_chunk_bytes_per_query: 2147483648
+  max_fetched_series_per_query: 1000000
+  # Blocks aren't split by the compactor, so every shard reads every block's index: 4, not 16, on 4 vCPU.
+  query_sharding_total_shards: 4
 CFG
 chown root:mimir /etc/mimir/config.yaml && chmod 0640 /etc/mimir/config.yaml
 [ -s /etc/mimir/runtime.yaml ] || echo "overrides: {}" > /etc/mimir/runtime.yaml
 chown root:mimir /etc/mimir/runtime.yaml && chmod 0640 /etc/mimir/runtime.yaml
-
-# The limits Mimir accepts per tenant and their defaults (hence their types), from this binary, to check the
-# runtime overrides against: Mimir refuses to start on a runtime config with an unknown field or a wrong type.
-/usr/local/bin/mimir -config.file=/etc/mimir/config.yaml -print.config |
-  python3 -c 'import json, sys, yaml; json.dump(yaml.safe_load(sys.stdin)["limits"], sys.stdout)' > /etc/mimir/limit-defaults.json
-python3 -c 'import json, sys; assert len(json.load(open(sys.argv[1]))) > 50' /etc/mimir/limit-defaults.json ||
-  { echo "server-init: couldn't list Mimir's limits"; exit 1; }
 
 # Go's soft memory limit at 80 % of the instance's memory (read at every start, so an instance type change
 # needs no bootstrap), and the hard cgroup limit at 92 %.
@@ -217,6 +231,17 @@ export GOMEMLIMIT
 exec /usr/local/bin/mimir -config.file=/etc/mimir/config.yaml
 SCRIPT
 chmod 0755 /usr/local/sbin/mimir-start
+
+cat > /usr/local/sbin/mimir-prestart <<'SCRIPT'
+#!/bin/sh
+f=/etc/mimir/runtime.yaml
+if ! why=$(python3 /usr/local/lib/mimir/check-overrides.py /etc/mimir/config.yaml /usr/local/bin/mimir < "$f" 2>&1); then
+  echo "mimir-prestart: $f refused ($why); starting with no overrides"
+  echo "overrides: {}" > "$f" && chown root:mimir "$f" && chmod 0640 "$f"
+fi
+exit 0
+SCRIPT
+chmod 0755 /usr/local/sbin/mimir-prestart
 
 cat > /etc/systemd/system/mimir.service <<'UNIT'
 [Unit]
@@ -233,6 +258,9 @@ StartLimitIntervalSec=0
 User=mimir
 Group=mimir
 WorkingDirectory=/data/mimir
+# Never start on a runtime config the check refuses (a binary or config change can make an old one invalid):
+# fall back to no overrides, which mimir-limits then flags (the config-rejected alarm) and retries.
+ExecStartPre=+/usr/local/sbin/mimir-prestart
 ExecStart=/usr/local/sbin/mimir-start
 Restart=always
 RestartSec=10
@@ -271,7 +299,6 @@ cat > /etc/logrotate.d/perf-mimir <<'ROT'
 /var/log/mimir/mimir.log /var/log/perf-mimir-ops.log {
     daily
     rotate 7
-    maxsize 500M
     compress
     delaycompress
     missingok
@@ -280,33 +307,51 @@ cat > /etc/logrotate.d/perf-mimir <<'ROT'
 }
 ROT
 
+# Scratch and status files of the helper scripts (root only; the watchdog publishes the status files).
+cat > /etc/tmpfiles.d/perf-mimir.conf <<'TMP'
+d /run/perf-mimir 0700 root root -
+TMP
+systemd-tmpfiles --create /etc/tmpfiles.d/perf-mimir.conf
+
 # --- Per-tenant limits: SSM -> Mimir's runtime config --------------------------------------------------
 cat > /usr/local/lib/mimir/check-overrides.py <<'PY'
-# Reads a runtime config on stdin; exits nonzero unless it is {"overrides": {tenant: {limit: value}}} with
-# well-formed tenant names, only limits this Mimir binary knows (argv[1]: their defaults, as JSON) and values
-# of the default's type (a duration where the default is one).
-import json
+# check-overrides.py CONFIG MIMIR < runtime.yaml: exits nonzero unless stdin is
+# {"overrides": {tenant: {limit: value}}} with well-formed tenant names and limits this Mimir takes as given.
+# Each tenant's limits go into a copy of the server's config, which the binary parses, validates and prints
+# back (-print.config): a wrong name, type or value (or one Mimir would silently round) is refused here, not
+# by a running Mimir, or by one that then can't start.
+import copy
 import re
+import subprocess
 import sys
+import tempfile
 
 import yaml
 
-defaults = json.load(open(sys.argv[1]))
-duration = re.compile(r"([0-9]+(ms|s|m|h|d|w|y))+")
+UNITS = {"ms": 0.001, "s": 1, "m": 60, "h": 3600, "d": 86400, "w": 604800, "y": 31536000}
 
 
-def ok(value, default):
-    if default is None:
-        return True
-    if isinstance(default, bool) or isinstance(value, bool):
-        return isinstance(value, bool) and isinstance(default, bool)
-    if isinstance(default, (int, float)):
-        return isinstance(value, (int, float))
-    if isinstance(default, str) and duration.fullmatch(default):
-        return value == 0 or (isinstance(value, str) and duration.fullmatch(value) is not None)
-    return isinstance(value, type(default))
+def seconds(v):
+    if v == 0 or v == "0":
+        return 0.0
+    if isinstance(v, str) and re.fullmatch(r"([0-9]+(ms|s|m|h|d|w|y))+", v):
+        return sum(int(n) * UNITS[u] for n, u in re.findall(r"([0-9]+)(ms|s|m|h|d|w|y)", v))
+    return None
 
 
+def same(want, got):
+    if isinstance(want, bool) or isinstance(got, bool):
+        return want is got
+    if isinstance(want, (int, float)) and isinstance(got, (int, float)):
+        return float(want) == float(got)
+    if seconds(want) is not None and seconds(got) is not None:
+        return seconds(want) == seconds(got)
+    return want == got
+
+
+config, binary = sys.argv[1], sys.argv[2]
+base = yaml.safe_load(open(config))
+base.pop("runtime_config", None)
 try:
     doc = yaml.safe_load(sys.stdin)
 except yaml.YAMLError as e:
@@ -319,52 +364,67 @@ if not isinstance(overrides, dict):
 for tenant, limits in overrides.items():
     if not isinstance(tenant, str) or not re.fullmatch(r"[a-z][a-z0-9_]{0,31}", tenant):
         sys.exit("bad tenant name: %r" % (tenant,))
-    if limits is None:
+    if limits is None or limits == {}:
         continue
     if not isinstance(limits, dict):
         sys.exit("%s: limits must be a map" % tenant)
+    cfg = copy.deepcopy(base)
+    cfg.setdefault("limits", {}).update(limits)
+    with tempfile.NamedTemporaryFile("w", suffix=".yaml") as f:
+        yaml.safe_dump(cfg, f)
+        f.flush()
+        r = subprocess.run([binary, "-config.file=" + f.name, "-print.config"], capture_output=True, text=True, timeout=120)
+    if r.returncode != 0:
+        sys.exit("%s: Mimir refuses these limits: %s" % (tenant, (r.stderr.strip().splitlines() or ["?"])[-1][:300]))
+    printed = (yaml.safe_load(r.stdout) or {}).get("limits", {})
     for name, value in limits.items():
-        if name not in defaults:
+        if name not in printed:
             sys.exit("%s: unknown limit %s" % (tenant, name))
-        if not ok(value, defaults[name]):
-            sys.exit("%s: %s: %r isn't like the default %r" % (tenant, name, value, defaults[name]))
+        if not same(value, printed[name]):
+            sys.exit("%s: %s: %r would become %r" % (tenant, name, value, printed[name]))
 PY
 cat > /usr/local/sbin/mimir-limits <<'SCRIPT'
 #!/bin/bash
-# The per-tenant overrides come from an SSM parameter Terraform writes (tenant_limits). A missing parameter
-# means no overrides; an SSM error or a value the check rejects keeps the current file. Mimir re-reads the
-# file every 10 s; if it refuses a new one (it then keeps running on the last good one), the previous file
-# is put back, so a restart doesn't fail on it, and that value isn't tried again.
+# The per-tenant overrides come from an SSM parameter Terraform writes (`tenants`). A missing parameter means
+# no overrides; an SSM error or a value the check rejects keeps the current file. Mimir re-reads the file
+# every 10 s. The check runs the new value through the Mimir binary first; if the running Mimir still refuses
+# it (it then keeps the last good one), the previous file is put back, so a restart doesn't fail on it, and
+# that value isn't tried again. /run/perf-mimir/limits.rejected
+# is 1 while the parameter's value isn't in force (the watchdog alarms on it).
 set -u
 . /etc/default/perf-mimir
 f=/etc/mimir/runtime.yaml
-refused=/var/lib/mimir-limits.refused
+st=/run/perf-mimir
+install -d -m 0700 "$st"
+refused=/data/.mimir-limits.refused # on the data volume: a replacement doesn't retry a refused value
 log() { echo "$(date -u +%FT%TZ) mimir-limits: $*"; }
 if ! new=$(aws ssm get-parameter --region "$REGION" --name "$SSM_PREFIX/runtime-overrides" \
-  --query Parameter.Value --output text 2>/tmp/mimir-limits.err); then
-  if grep -q ParameterNotFound /tmp/mimir-limits.err; then new="overrides: {}"; else
-    log "SSM error, keeping the current file: $(head -c 300 /tmp/mimir-limits.err)"
-    rm -f /tmp/mimir-limits.err
+  --query Parameter.Value --output text 2>"$st/limits.err"); then
+  if grep -q ParameterNotFound "$st/limits.err"; then new="overrides: {}"; else
+    log "SSM error, keeping the current file: $(head -c 300 "$st/limits.err")"
     exit 0
   fi
 fi
-rm -f /tmp/mimir-limits.err
-[ "$new" = "$(cat "$f" 2>/dev/null)" ] && exit 0
-[ "$new" = "$(cat "$refused" 2>/dev/null)" ] && exit 0
-if ! why=$(printf '%s\n' "$new" | python3 /usr/local/lib/mimir/check-overrides.py /etc/mimir/limit-defaults.json 2>&1); then
+if [ "$new" = "$(cat "$f" 2>/dev/null)" ]; then echo 0 > "$st/limits.rejected"; exit 0; fi
+if [ "$new" = "$(cat "$refused" 2>/dev/null)" ]; then echo 1 > "$st/limits.rejected"; exit 0; fi
+if ! why=$(printf '%s\n' "$new" | python3 /usr/local/lib/mimir/check-overrides.py /etc/mimir/config.yaml /usr/local/bin/mimir 2>&1); then
   log "rejected ($why), keeping the current file"
   printf '%s\n' "$new" > "$refused"
+  echo 1 > "$st/limits.rejected"
   exit 0
 fi
 cp -p "$f" "$f.prev"
 printf '%s\n' "$new" > "$f.tmp" && chown root:mimir "$f.tmp" && chmod 0640 "$f.tmp" && mv "$f.tmp" "$f"
 log "runtime overrides updated"
-if curl -sf -m 5 http://127.0.0.1:9009/ready >/dev/null; then
+echo 0 > "$st/limits.rejected"
+# /metrics answers while the WAL replays, unlike /ready.
+if curl -sf -m 5 -o /dev/null http://127.0.0.1:9009/metrics; then
   sleep 15
   if curl -sf -m 10 http://127.0.0.1:9009/metrics | grep -q '^cortex_runtime_config_last_reload_successful{[^}]*} 0$'; then
     mv "$f.prev" "$f"
     printf '%s\n' "$new" > "$refused"
-    log "Mimir refused the new overrides (its log says why); put the previous ones back"
+    echo 1 > "$st/limits.rejected"
+    log "Mimir refused the new overrides (mimir.log says why); put the previous ones back"
   fi
 fi
 exit 0
@@ -388,32 +448,59 @@ cat > /usr/local/sbin/mimir-credentials <<'SCRIPT'
 #!/bin/bash
 # The htpasswd lines come from SSM SecureString parameters, written out of band: one per role, one line per
 # user, users named <tenant>-<role>-<1|2>. nginx sends the tenant part as X-Scope-OrgID, so whoever writes
-# the parameter decides which tenant a credential reaches; a client never does. Only SHA-512 crypt lines
-# with well-formed names for the role's own file are accepted. A missing parameter empties the file (every
-# request then fails authentication: closed; deleting the parameter revokes); any other SSM error keeps it.
+# the parameter decides which tenant a credential reaches; a client never does. Only the tenants Terraform
+# lists ($SSM_PREFIX/tenants) are admitted. Each line is checked on its own: SHA-512 crypt, a well-formed
+# name for the role's own file, a listed tenant. Bad lines are dropped and logged (and counted in
+# /run/perf-mimir/credentials.rejected, which the watchdog alarms on); the good ones are installed. A missing
+# parameter empties the file (every request then fails authentication: closed; deleting the parameter
+# revokes the role for every tenant); an SSM error keeps the current file.
 set -u
 . /etc/default/perf-mimir
+st=/run/perf-mimir
+install -d -m 0700 "$st"
+log() { echo "$(date -u +%FT%TZ) mimir-credentials: $*"; }
+# The tenant list, cached so an SSM error keeps the last one.
+tenants=/etc/nginx/perf/tenants
+if t=$(aws ssm get-parameter --region "$REGION" --name "$SSM_PREFIX/tenants" --query Parameter.Value --output text 2>"$st/credentials.err"); then
+  printf '%s\n' "$t" | grep -xE '[a-z][a-z0-9_]{0,31}' > "$tenants.tmp"; mv "$tenants.tmp" "$tenants"
+elif grep -q ParameterNotFound "$st/credentials.err"; then
+  : > "$tenants"
+else
+  log "tenants: SSM error, keeping the current list: $(head -c 300 "$st/credentials.err")"
+fi
+touch "$tenants"
 changed=0
+rejected=0
 for role in push read; do
   f=/etc/nginx/htpasswd/$role
   if ! new=$(aws ssm get-parameter --region "$REGION" --with-decryption --name "$SSM_PREFIX/htpasswd/$role" \
-    --query Parameter.Value --output text 2>/tmp/mimir-credentials.err); then
-    if grep -q ParameterNotFound /tmp/mimir-credentials.err; then new=""; else
-      echo "$(date -u +%FT%TZ) mimir-credentials: $role: SSM error, keeping the current file: $(head -c 300 /tmp/mimir-credentials.err)"
+    --query Parameter.Value --output text 2>"$st/credentials.err"); then
+    if grep -q ParameterNotFound "$st/credentials.err"; then new=""; else
+      log "$role: SSM error, keeping the current file: $(head -c 300 "$st/credentials.err")"
       continue
     fi
   fi
-  if [ -n "$new" ] && printf '%s\n' "$new" | grep -qvE "^[a-z][a-z0-9_]{0,31}-$role-[12]:\\\$6\\\$[./A-Za-z0-9]{1,16}\\\$[./A-Za-z0-9]{86}\$"; then
-    echo "$(date -u +%FT%TZ) mimir-credentials: $role: rejected (only <tenant>-$role-1|2 users with SHA-512 crypt hashes), keeping the current file"
-    continue
-  fi
-  if [ "$new" != "$(cat "$f" 2>/dev/null)" ]; then
-    printf '%s\n' "$new" | sed '/^$/d' > "$f.tmp" && chown root:nginx "$f.tmp" && chmod 0640 "$f.tmp" && mv "$f.tmp" "$f"
-    echo "$(date -u +%FT%TZ) mimir-credentials: $role: $(grep -c . "$f") user(s), tenants: $(cut -d- -f1 "$f" | sort -u | paste -sd, -)"
+  good=""
+  while IFS= read -r line; do
+    [ -z "$line" ] && continue
+    user=$${line%%:*}
+    if ! printf '%s\n' "$line" | grep -qE "^[a-z][a-z0-9_]{0,31}-$role-[12]:\\\$6\\\$[./A-Za-z0-9]{1,16}\\\$[./A-Za-z0-9]{86}\$"; then
+      log "$role: dropped a malformed line (user '$${user:0:40}'; only <tenant>-$role-1|2 with a SHA-512 crypt hash)"
+      rejected=$(( rejected + 1 )); continue
+    fi
+    if ! grep -qxF "$${user%-$role-*}" "$tenants"; then
+      log "$role: dropped $user: tenant $${user%-$role-*} isn't in $SSM_PREFIX/tenants"
+      rejected=$(( rejected + 1 )); continue
+    fi
+    good="$good$line"$'\n'
+  done <<< "$new"
+  if [ "$(printf '%s' "$good")" != "$(cat "$f" 2>/dev/null)" ]; then
+    printf '%s' "$good" > "$f.tmp" && chown root:nginx "$f.tmp" && chmod 0640 "$f.tmp" && mv "$f.tmp" "$f"
+    log "$role: $(grep -c . "$f") user(s), tenants: $(cut -d- -f1 "$f" | sort -u | paste -sd, -)"
     changed=1
   fi
 done
-rm -f /tmp/mimir-credentials.err
+echo "$rejected" > "$st/credentials.rejected"
 if [ "$changed" = 1 ]; then nginx -t -q && systemctl reload nginx; fi
 exit 0
 SCRIPT
@@ -516,6 +603,8 @@ cat > /usr/local/sbin/mimir-tls <<'SCRIPT'
 # Renewals: certbot's own timer, with the saved webroot and the deploy hook.
 set -u
 . /etc/default/perf-mimir
+# The certificates live on /data (mounted nofail): without it, certbot would issue onto the root disk.
+mountpoint -q /data || { echo "mimir-tls: /data isn't mounted"; exit 0; }
 cert=/etc/letsencrypt/live/$HOST_NAME/fullchain.pem
 if [ ! -s "$cert" ]; then
   # Only once the name resolves to this server: failed validations are rate limited (5 per hour).
@@ -539,21 +628,32 @@ chmod 0755 /usr/local/sbin/mimir-tls
 # --- The health watchdog ----------------------------------------------------------------------------
 cat > /usr/local/sbin/mimir-watchdog <<'SCRIPT'
 #!/bin/bash
-# Every minute, four metrics (namespace PerfMimir):
-#   Ready              1 when Mimir is ready and nginx serves /healthz (on 443 once the certificate is
-#                      there, on 80 before);
-#   CertDaysLeft       days the certificate has left (0 before it exists);
-#   DiscardedSamples   the increase of cortex_discarded_samples_total (all reasons and tenants);
-#   SeriesUsedPercent  in-memory series across tenants, as a percentage of MAX_SERIES_TOTAL.
+# Every minute, in one call, these metrics (namespace PerfMimir, dimension InstanceId):
+#   Ready                      1 when Mimir is ready and nginx serves /healthz (on 443 once the
+#                              certificate is there, on 80 before);
+#   CertDaysLeft               days the certificate has left (0 before it exists);
+#   ConfigRejected             credential lines dropped plus 1 if the tenant overrides aren't in force;
+# and, while Mimir is ready:
+#   DiscardedSamples           the increase of cortex_discarded_samples_total (all reasons and tenants);
+#   SeriesUsedPercent          in-memory series across tenants, as a percentage of MAX_SERIES_TOTAL;
+#   ShipperFailures            the increase of failed block uploads to S3;
+#   CompactorHoursSinceSuccess hours since the compactor last finished a run.
 # It only reports: a Mimir that isn't ready may be replaying its WAL, which mustn't be interrupted.
 set -u
 . /etc/default/perf-mimir
-last=/run/mimir-watchdog.discarded
+st=/run/perf-mimir
+install -d -m 0700 "$st"
 token=$(curl -s -m 2 -X PUT http://169.254.169.254/latest/api/token -H "X-aws-ec2-metadata-token-ttl-seconds: 60")
 iid=$(curl -s -m 2 -H "X-aws-ec2-metadata-token: $token" http://169.254.169.254/latest/meta-data/instance-id)
 case "$iid" in i-*) ;; *) echo "mimir-watchdog: no instance id from IMDS"; exit 1 ;; esac
-put() { aws cloudwatch put-metric-data --region "$REGION" --namespace PerfMimir --metric-name "$1" \
-  --dimensions "InstanceId=$iid" --value "$2" || true; }
+data=""
+add() { data="$data$${data:+,}{\"MetricName\":\"$1\",\"Value\":$2,\"Dimensions\":[{\"Name\":\"InstanceId\",\"Value\":\"$iid\"}]}"; }
+# The increase of a counter since the last run (0 the first time, the whole value after a restart).
+increase() {
+  local prev; prev=$(cat "$st/$1" 2>/dev/null || echo "$2")
+  echo "$2" > "$st/$1"
+  awk -v c="$2" -v p="$prev" 'BEGIN {d = c - p; if (d < 0) d = c; printf "%.0f", d}'
+}
 
 ready=0; curl -sf -m 5 http://127.0.0.1:9009/ready >/dev/null && ready=1
 cert=/etc/letsencrypt/live/$HOST_NAME/fullchain.pem
@@ -564,18 +664,20 @@ if openssl x509 -enddate -noout -in "$cert" >/dev/null 2>&1; then
 else
   edge=0; curl -sf -m 5 http://127.0.0.1/healthz >/dev/null && edge=1
 fi
-put Ready $(( ready && edge ))
-put CertDaysLeft "$days"
+add Ready $(( ready && edge ))
+add CertDaysLeft "$days"
+add ConfigRejected $(( $(cat "$st/credentials.rejected" 2>/dev/null || echo 0) + $(cat "$st/limits.rejected" 2>/dev/null || echo 0) ))
 
 if [ "$ready" = 1 ] && metrics=$(curl -sf -m 10 http://127.0.0.1:9009/metrics); then
-  cur=$(printf '%s\n' "$metrics" | awk '/^cortex_discarded_samples_total/ {s += $NF} END {printf "%.0f", s}')
-  prev=$(cat "$last" 2>/dev/null || echo "$cur")
-  delta=$(( cur - prev )); [ "$delta" -lt 0 ] && delta=$cur # restarted
-  echo "$cur" > "$last"
-  put DiscardedSamples "$delta"
-  pct=$(printf '%s\n' "$metrics" | awk -v max="$MAX_SERIES_TOTAL" '/^cortex_ingester_memory_series / {printf "%.1f", $2 * 100 / max}')
-  [ -n "$pct" ] && put SeriesUsedPercent "$pct"
+  sum() { printf '%s\n' "$metrics" | awk -v m="$1" '$1 == m || index($1, m "{") == 1 {s += $NF} END {printf "%.0f", s}'; }
+  add DiscardedSamples "$(increase discarded "$(sum cortex_discarded_samples_total)")"
+  add ShipperFailures "$(increase shipper "$(sum cortex_ingester_shipper_upload_failures_total)")"
+  add SeriesUsedPercent "$(printf '%s\n' "$metrics" | awk -v max="$MAX_SERIES_TOTAL" '$1 == "cortex_ingester_memory_series" {printf "%.1f", $2 * 100 / max}')"
+  last=$(printf '%s\n' "$metrics" | awk '$1 == "cortex_compactor_last_successful_run_timestamp_seconds" {printf "%.0f", $2}')
+  [ -n "$last" ] && [ "$last" -gt 0 ] && add CompactorHoursSinceSuccess "$(awk -v l="$last" -v n="$(date +%s)" 'BEGIN {printf "%.1f", (n - l) / 3600}')"
 fi
+aws cloudwatch put-metric-data --region "$REGION" --namespace PerfMimir --metric-data "[$data]" ||
+  echo "mimir-watchdog: put-metric-data failed"
 SCRIPT
 chmod 0755 /usr/local/sbin/mimir-watchdog
 
@@ -586,6 +688,7 @@ for job in credentials:5min limits:5min tls:10min watchdog:1min; do
 Description=Mimir $name
 [Service]
 Type=oneshot
+TimeoutStartSec=4min
 ExecStart=/usr/local/sbin/mimir-$name
 StandardOutput=append:/var/log/perf-mimir-ops.log
 StandardError=inherit
@@ -596,6 +699,7 @@ Description=Mimir $name every $every
 [Timer]
 OnBootSec=1min
 OnUnitActiveSec=$every
+AccuracySec=5s
 [Install]
 WantedBy=timers.target
 UNIT
@@ -603,7 +707,7 @@ done
 
 # --- CloudWatch agent: memory and disk metrics, Mimir, nginx and bootstrap logs ------------------------
 # Metrics and logs only: a failure here mustn't leave the server half built.
-if curl -fsSL https://amazoncloudwatch-agent.s3.amazonaws.com/ubuntu/amd64/latest/amazon-cloudwatch-agent.deb -o /tmp/cwa.deb &&
+if curl -fsSL "https://amazoncloudwatch-agent.s3.amazonaws.com/ubuntu/$ARCH/latest/amazon-cloudwatch-agent.deb" -o /tmp/cwa.deb &&
   dpkg -i /tmp/cwa.deb; then CWA=1; else CWA=0; echo "server-init: CloudWatch agent install failed"; fi
 rm -f /tmp/cwa.deb
 mkdir -p /opt/aws/amazon-cloudwatch-agent/etc
@@ -619,7 +723,8 @@ cat > /opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json <<JSON
     }
   },
   "logs": { "logs_collected": { "files": { "collect_list": [
-    { "file_path": "/var/log/mimir/mimir.log", "log_group_name": "${log_group_mimir}", "log_stream_name": "{instance_id}/mimir" },
+    { "file_path": "/var/log/mimir/mimir.log", "log_group_name": "${log_group_mimir}", "log_stream_name": "{instance_id}/mimir",
+      "filters": [{ "type": "exclude", "expression": "evaluation stats" }] },
     { "file_path": "/var/log/nginx/access.log", "log_group_name": "${log_group_nginx}", "log_stream_name": "{instance_id}/access" },
     { "file_path": "/var/log/nginx/error.log", "log_group_name": "${log_group_nginx}", "log_stream_name": "{instance_id}/error" },
     { "file_path": "/var/log/server-init.log", "log_group_name": "${log_group_system}", "log_stream_name": "{instance_id}/server-init" },
@@ -631,13 +736,13 @@ JSON
   -c file:/opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json || echo "server-init: CloudWatch agent didn't start"; }
 
 # --- Start ------------------------------------------------------------------------------------------
+# Through systemd, so a timer firing meanwhile can't run the same script concurrently.
 systemctl daemon-reload
-/usr/local/sbin/mimir-credentials || true
-/usr/local/sbin/mimir-limits || true
+systemctl start mimir-credentials.service mimir-limits.service || true
 nginx -t
 systemctl enable nginx
 systemctl restart nginx
 systemctl enable --now mimir.service
 for name in credentials limits tls watchdog; do systemctl enable --now mimir-$name.timer; done
-/usr/local/sbin/mimir-tls || true
+systemctl start mimir-tls.service || true
 echo "server-init: done $(date -u +%FT%TZ)"
