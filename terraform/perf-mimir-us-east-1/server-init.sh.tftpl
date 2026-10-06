@@ -79,8 +79,11 @@ FRESH=0
 blk=0; blkid -p "$DEV" >/dev/null 2>&1 || blk=$?
 [ "$blk" = 0 ] || [ "$blk" = 2 ] || { echo "server-init: blkid failed ($blk) on $DEV"; exit 1; }
 if [ "$blk" = 2 ]; then
-  # A second guard: a new EBS volume reads as zeros; anything else isn't formatted on blkid's word alone.
-  cmp -s -n 1048576 "$DEV" /dev/zero || { echo "server-init: $DEV has no filesystem but isn't blank; not formatting it"; exit 1; }
+  # A second guard: no known signature at all (partition table, RAID, LVM, crypt, filesystem). A new EBS volume
+  # is not guaranteed to read as zeros (a fresh encrypted gp3 had data from byte 4097), so zeros can't be the test;
+  # the volume is also the one this module created and attached by ID.
+  sigs=$(wipefs -n "$DEV" 2>&1) || { echo "server-init: wipefs failed on $DEV; not formatting it"; exit 1; }
+  [ -z "$sigs" ] || { echo "server-init: $DEV has no filesystem but carries signatures; not formatting it"; echo "$sigs"; exit 1; }
   echo "server-init: new data volume, formatting"
   mkfs.ext4 -q -L mimirdata "$DEV"
   FRESH=1

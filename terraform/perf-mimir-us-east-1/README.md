@@ -8,7 +8,7 @@ is `ultra` (the Redis Ultra perf benchmarks). Benchmarks account (726902207197),
 
 | piece | what |
 |---|---|
-| EC2 `r7i.xlarge`, Ubuntu 26.04 | Mimir 3.2.1 (`-target=all`, the release binary, SHA-256 checked, under systemd, every port on 127.0.0.1) behind nginx (nginx.org stable) |
+| EC2 `r7g.xlarge` (Graviton, arm64), Ubuntu 26.04 | Mimir 3.2.1 (`-target=all`, the release binary, SHA-256 checked, under systemd, every port on 127.0.0.1) behind nginx (nginx.org stable) |
 | `https://metrics.cto.redislabs.com` | the only way in: push (`POST /api/v1/push`) from anywhere with a push credential; read (`/prometheus/api/v1/{query,query_range,series,labels,label/<name>/values,metadata}`) with a read credential and only from `read_allowed_cidrs` (the neptune-dev Grafana's NAT). Everything else is 403. |
 | S3 `perf-mimir-us-east-1-<account>` | the TSDB blocks (`blocks/<tenant>/`, kept forever: `retention_period = 0`); `ruler/` stays empty (the ruler runs in `-target=all`, but its API isn't served). Versioned; old versions expire after 30 days. |
 | EBS `…-data` (150 GiB, `/data`) | the ingester's WAL and TSDB head, the last 13 h of blocks, compaction scratch, the store-gateway's index headers and the TLS certificates. Survives instance replacement (`prevent_destroy`); not snapshotted, since S3 has every shipped block (two alarms watch that it does). |
@@ -199,8 +199,8 @@ The `cpu` alarm (85 % for 15 minutes) says when it isn't. For sustained ingest n
 | instance | vCPU (cores) | memory | $/month | note |
 |---|---|---|---|---|
 | `m7i.xlarge` | 4 (2) | 16 GiB | ~147 | enough for the expected load, but only with the caps cut to ~0.75M series / 75k samples/s |
-| `r7i.xlarge` (default) | 4 (2) | 32 GiB | ~193 | the caps above |
-| `r7g.xlarge` | 4 (4) | 32 GiB | ~156 | Graviton: same memory, twice the cores, cheaper; needs an arm64 `instance_ami` ("Graviton" below) |
+| `r7i.xlarge` | 4 (2) | 32 GiB | ~193 | the caps above |
+| `r7g.xlarge` (default) | 4 (4) | 32 GiB | ~156 | Graviton: same memory, twice the cores, cheaper; needs an arm64 `instance_ami` ("Graviton" below) |
 | `m7i.2xlarge` | 8 (4) | 32 GiB | ~294 | more CPU, same caps |
 | `r7i.2xlarge` | 8 (4) | 64 GiB | ~386 | for ~5M series (raise `max_series_total`) |
 
@@ -216,7 +216,7 @@ At the caps that's ~90 GB in the first year, growing ~25 GB a year. At the expec
 
 ## Cost
 
-List prices, us-east-1, per month: EC2 `r7i.xlarge` ~$193, EBS (40 + 150 GiB gp3) ~$15, public IPv4 ~$4,
+List prices, us-east-1, per month: EC2 `r7g.xlarge` ~$156 (`r7i.xlarge` ~$193), EBS (40 + 150 GiB gp3) ~$15, public IPv4 ~$4,
 CloudWatch ~$8 (13 alarms, ~13 custom metrics, one watchdog call a minute, logs; successful pushes and per-query
 evaluation lines aren't shipped), S3 requests ~$1–3. That's ~$220.
 

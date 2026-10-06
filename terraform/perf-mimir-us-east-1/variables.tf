@@ -35,15 +35,17 @@ variable "availability_zone" {
 }
 
 # Memory bound: the ingester keeps every active series in memory (see README.md, "Sizing"). 4 vCPU, 32 GiB.
-# Graviton (r7g.xlarge) works too, with an arm64 instance_ami: the bootstrap picks the binaries by architecture.
+# Graviton (r7g.xlarge, arm64): same memory as r7i.xlarge, twice the physical cores, cheaper. The bootstrap picks the
+# binaries by architecture; r7i.xlarge with the amd64 AMI (README, "Graviton") is the fallback.
 variable "instance_type" {
-  default = "r7i.xlarge"
+  default = "r7g.xlarge"
 }
 
-# Ubuntu 26.04 LTS amd64 (Canonical ubuntu-resolute-26.04-amd64-server-20260916). Pinned: an AMI change
-# replaces the instance (the data volume and the certificates survive it).
+# Ubuntu 26.04 LTS arm64 (Canonical ubuntu-resolute-26.04-arm64-server-20261003, owner 099720109477). Pinned: an AMI
+# change replaces the instance (the data volume and the certificates survive it). amd64 (for r7i):
+# ami-09b09d2491cd88154 (ubuntu-resolute-26.04-amd64-server-20260916).
 variable "instance_ami" {
-  default = "ami-09b09d2491cd88154"
+  default = "ami-01d67980b168ae293"
 }
 
 variable "root_volume_size_gb" {
