@@ -118,8 +118,8 @@ variable "retention_period" {
   description = "compactor_blocks_retention_period: blocks older than this are deleted. 0 keeps them forever."
   default     = "0"
   validation {
-    condition     = can(regex("^(0|([0-9]+(y|w|d|h|m|s|ms))+)$", var.retention_period))
-    error_message = "retention_period must be 0 or a duration such as 400d."
+    condition     = can(regex("^(0|[0-9]{1,7}(s|m)|[0-9]{1,6}h|[0-9]{1,5}d|[0-9]{1,4}w|[0-9]{1,2}y)$", var.retention_period))
+    error_message = "retention_period must be 0 or one bounded duration such as 400d (s, m, h, d, w or y)."
   }
 }
 
@@ -185,8 +185,8 @@ variable "out_of_order_time_window" {
   description = "How far behind the tenant's newest sample a sample is still accepted (clients replay buffered samples after network blips)"
   default     = "1h"
   validation {
-    condition     = can(regex("^(0|([0-9]+(h|m|s))+)$", var.out_of_order_time_window))
-    error_message = "out_of_order_time_window must be 0 or a duration such as 1h."
+    condition     = can(regex("^(0|[0-9]{1,7}(s|m)|[0-9]{1,6}h)$", var.out_of_order_time_window))
+    error_message = "out_of_order_time_window must be 0 or one bounded duration such as 1h or 90m."
   }
 }
 
@@ -251,9 +251,9 @@ variable "tenants" {
   }
   validation {
     condition = try(alltrue(flatten([for t, l in var.tenants : [
-      for v in [l.out_of_order_time_window, l.compactor_blocks_retention_period] : can(regex("^(0|([0-9]+(y|w|d|h|m|s|ms))+)$", v)) if v != null
+      for v in [l.out_of_order_time_window, l.compactor_blocks_retention_period] : can(regex("^(0|[0-9]{1,7}(s|m)|[0-9]{1,6}h|[0-9]{1,5}d|[0-9]{1,4}w|[0-9]{1,2}y)$", v)) if v != null
     ]])), false)
-    error_message = "tenants: out_of_order_time_window and compactor_blocks_retention_period must be 0 or durations such as 2h."
+    error_message = "tenants: out_of_order_time_window and compactor_blocks_retention_period must be 0 or one bounded duration such as 2h or 400d."
   }
 }
 
