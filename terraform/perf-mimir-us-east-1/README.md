@@ -279,19 +279,19 @@ the datasource's. Provisioning, for `ultra`:
 apiVersion: 1
 datasources:
   - name: Perf metrics (ultra)
-    uid: perf-mimir-ultra
+    uid: ultra-metrics
     type: prometheus
     access: proxy
     url: https://metrics.cto.redislabs.com/prometheus
     basicAuth: true
-    basicAuthUser: $PERF_MIMIR_ULTRA_READ_USER     # ultra-read-1
+    basicAuthUser: $PERF_METRICS_READ_USER         # ultra-read-1
     secureJsonData:
-      basicAuthPassword: $PERF_MIMIR_ULTRA_READ_PASSWORD
+      basicAuthPassword: $PERF_METRICS_READ_PASSWORD
     jsonData:
       prometheusType: Mimir                       # Grafana can't ask (status/buildinfo isn't served)
       prometheusVersion: 2.9.1
       httpMethod: POST
-      timeInterval: 30s                           # the tenant's slowest scrape interval ($__rate_interval needs it)
+      timeInterval: 10s                           # client and shard scrapes; give node/pod panels (30 s scrapes) a 30s Min interval
       timeout: 130
       disableRecordingRules: true                 # else every query editor load asks /api/v1/rules (403)
       manageAlerts: false                         # else the alert list asks this datasource for rules (403)
