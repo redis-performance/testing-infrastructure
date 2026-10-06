@@ -53,7 +53,9 @@ cross tenants.
 
 - **The tenants are listed in Terraform.** `tenants` maps each tenant to its limit overrides (`{}` for the
   defaults); Terraform writes the list and the overrides to SSM, and the server picks them up within 5 minutes
-  without a restart. Adding a team or project is a reviewed PR that adds its entry, plus its users (below).
+  without a restart. Adding a team or project is a PR that adds its entry, plus its users (below). The list
+  is a guard against mistakes (a typo can't create a tenant), not an authorization boundary: whoever can write
+  the credential parameters can also write the SSM copy of the list until the next apply.
   Tenant names: `[a-z][a-z0-9_]{0,31}` (no `-`, so a user name splits one way). Never reuse a removed tenant's
   name: its data is kept forever, and the new owner would read it.
 - **The credential is the tenant.** Users are named `<tenant>-<role>-<1|2>` (`ultra-push-1`, `ultra-read-1`).
@@ -68,31 +70,29 @@ cross tenants.
 - **Limits.** The defaults (variables) apply to each tenant: 300k active series and 20k samples/s (burst
   200k), 64 label names per series, label names up to 1024 bytes and values up to 4096, a 1 h out-of-order
   window, and query guards (2 GiB estimated memory, 2 GiB of chunks and 1M series per query). `ultra` gets 1.5M
-  series and 100k samples/s (burst 1M) through `tenants`. Any Mimir limit can be overridden per tenant (Mimir's
-  YAML names).
-  - The server runs each tenant's overrides through the Mimir binary first (`-print.config`). It refuses unknown
-    names, wrong types, values Mimir would round and Mimir's own validation errors.
-  - Refused overrides leave the current ones in force, and the `config-rejected` alarm fires.
-    `/var/log/perf-mimir-ops.log` says what happened (`mimir.log` says why, when the running Mimir refused).
-    A refused value isn't retried until it changes (`/data/.mimir-limits.refused`).
-  - Mimir never starts on overrides the check refuses (say, after an upgrade): it starts with none, and the
-    alarm fires until they're fixed.
+  series and 100k samples/s (burst 1M) through `tenants`. The overridable limits are the fields of the
+  `tenants` type (series, rates, label names, out-of-order window, retention, query guards); Terraform checks
+  their values. If Mimir still refuses a new runtime config, it keeps the last good one and the
+  `config-rejected` alarm fires (`mimir.log` says why).
 - **The whole server's caps:** `max_series_total` (2M) and `max_ingestion_rate_total` (120k samples/s), sized to
   the instance ("Sizing"). Past them the ingester refuses pushes for every tenant rather than run out of memory.
   Keep the per-tenant limits of the tenants that run at the same time within them, so one tenant can't crowd out
   the rest.
 - **Shared by all tenants:** the read source allowlist (`read_allowed_cidrs`; another team's Grafana NAT added
   there is open to every tenant's read credential, though each still needs one) and the alarms (the
-  `discarded-samples` alarm fires on any tenant's client; the logs say which).
+  `discarded-samples` alarm fires on any tenant's client, and on pushes refused at the server-wide caps; the
+  logs say which).
 
 ## Credentials
 
 There are two users per tenant and role (`-1` and `-2`, so a rotation can overlap). They are SHA-512 crypt
 htpasswd lines, one per line, in the SecureString parameters `/perf-mimir-us-east-1/htpasswd/push` and `…/read`.
 The server reloads them every 5 minutes and checks each line on its own: a SHA-512 crypt hash, a
-`<tenant>-<role>-1|2` name in its role's own parameter, and a listed tenant. It installs the good lines and
-drops the others (the `config-rejected` alarm, and a line per drop in `/var/log/perf-mimir-ops.log`). An SSM
-error keeps the current file. Deleting a parameter revokes that role for every tenant. SHA-512 crypt, not
+`<tenant>-<role>-1|2` name in its role's own parameter, a listed tenant, and not a repeat of an earlier line's
+user. It installs the good lines and drops the others. Each drop raises the `config-rejected` alarm and leaves
+a line, naming the user only, in `/var/log/perf-mimir-ops.log`. An SSM error keeps the current file; if it lasts
+20 minutes, the alarm fires too, because revocations aren't applied meanwhile. Deleting a parameter revokes
+that role for every tenant. SHA-512 crypt, not
 bcrypt: nginx checks the password on every request, and bcrypt would block its workers.
 
 Add or replace a user (the same for `read`). Keep the password in the password manager; it's what the client
@@ -102,15 +102,19 @@ export AWS_PROFILE=bench AWS_REGION=us-east-1
 T=ultra R=push N=1 PARAM=/perf-mimir-us-east-1/htpasswd/$R
 PW=$(openssl rand -base64 32)
 LINE="$T-$R-$N:$(openssl passwd -6 -stdin <<<"$PW")"
-[[ $LINE =~ ^[a-z][a-z0-9_]{0,31}-(push|read)-[12]:\$6\$ ]] || echo "bad line: don't write it"
-CUR=$(aws ssm get-parameter --with-decryption --name "$PARAM" --query Parameter.Value --output text 2>ssm.err) ||
-  { grep -q ParameterNotFound ssm.err && CUR=; } &&
-  aws ssm put-parameter --overwrite --type SecureString --name "$PARAM" \
-    --value "$( { printf '%s\n' "$CUR" | grep -v "^$T-$R-$N:"; echo "$LINE"; } | sed '/^$/d')" >/dev/null ||
+if ! [[ $LINE =~ ^[a-z][a-z0-9_]{0,31}-(push|read)-[12]:\$6\$ ]]; then
+  echo "bad line; nothing written"
+elif ! { CUR=$(aws ssm get-parameter --with-decryption --name "$PARAM" --query Parameter.Value --output text 2>ssm.err) ||
+         { grep -q ParameterNotFound ssm.err && CUR=; }; }; then
   echo "SSM read failed; nothing written"
+else
+  aws ssm put-parameter --overwrite --type SecureString --name "$PARAM" \
+    --value "$( { printf '%s\n' "$CUR" | grep -v "^$T-$R-$N:"; echo "$LINE"; } | sed '/^$/d')" >/dev/null &&
+    echo "written" || echo "SSM write failed"
+fi
 ```
-It keeps the other users' lines, replaces an older line for the same user, and writes nothing if the read fails
-(an empty read would revoke everyone else). One person at a time: it's read-modify-write. A Standard parameter
+It keeps the other users' lines and replaces an older line for the same user. It writes nothing if the line is
+malformed or the read fails, since an empty read would revoke everyone else. One person at a time: it's read-modify-write. A Standard parameter
 holds 4 KB, about 30 lines; past that, `--tier Advanced` (8 KB).
 
 After 5 minutes, check it took: `/var/log/perf-mimir-ops.log` (CloudWatch `/perf-mimir-us-east-1/system`,
@@ -118,10 +122,13 @@ stream `…/ops`) lists the tenant. A push credential gets 400 (an empty body), 
 `curl -s -o /dev/null -w '%{http_code}\n' -u "$T-push-$N:$PW" -X POST https://metrics.cto.redislabs.com/api/v1/push`.
 
 - **Rotate:** add `<tenant>-<role>-2` with a new password, move the clients to it, then revoke `-1`.
-- **Revoke one user:**
+- **Revoke one user** (set `T`, `R` and `N` for the user being revoked):
   ```bash
-  CUR=$(aws ssm get-parameter --with-decryption --name "$PARAM" --query Parameter.Value --output text) &&
-    aws ssm put-parameter --overwrite --type SecureString --name "$PARAM" --value "$(printf '%s\n' "$CUR" | grep -v "^$T-$R-$N:")" >/dev/null
+  T=ultra R=push N=1 PARAM=/perf-mimir-us-east-1/htpasswd/$R
+  CUR=$(aws ssm get-parameter --with-decryption --name "$PARAM" --query Parameter.Value --output text) && {
+    NEW=$(printf '%s\n' "$CUR" | grep -v "^$T-$R-$N:")
+    if [ -n "$NEW" ]; then aws ssm put-parameter --overwrite --type SecureString --name "$PARAM" --value "$NEW" >/dev/null
+    else aws ssm delete-parameter --name "$PARAM"; fi; }   # last user: deleting the parameter revokes the role
   ```
 - **Where the passwords go:** the read password into the Grafana datasource (below); the push password into the
   clients (`remote_write` `basic_auth`), never into a repository.
@@ -147,9 +154,10 @@ traced to the run that produced it, and runs are never pooled by accident:
 | `node_type` | the data nodes' EC2 instance type (`unknown` if it couldn't be read) |
 | `operator_image` | the operator image the database ran under |
 | `redis_version` | the Redis version of the database |
+| `profiled` | `true` if continuous profiling ran during the run, else `false` (profiled runs aren't compared with unprofiled ones) |
 | `job` | the source: `ycsb` (the load generator), `shard` (Redis shard exporters), `node` (data-node `node_exporter`), `pod` (cAdvisor container metrics), `client_host` (the benchmark client's `node_exporter`) |
 
-Rules for any tenant's clients:
+## Client rules (every tenant)
 
 - A label value is never empty (`unknown` instead). An empty value is the same as no label, so two runs' series
   lose what tells them apart and merge (out-of-order and duplicate rejections, mixed data).
@@ -168,24 +176,29 @@ Mimir's ingester keeps every active series in memory, so memory decides the inst
 the shard exporters, the load generator). A few concurrent runs use a few percent of the caps. Check
 `cortex_ingester_memory_series` (or the `SeriesUsedPercent` metric) after the first runs.
 
-**The caps** (2M series, 120k samples/s across tenants) give the headroom the brief asks for: room for a few
-teams, cardinality mistakes, and series that finished runs leave in memory until the next head compaction (up
-to ~3 h). Grafana's capacity planning figures, before the 50 % headroom it adds on top, are:
+**The caps** (2M series, 120k samples/s across tenants) leave room for a few teams, cardinality mistakes, and
+series that finished runs leave in memory until the next head compaction (up to ~3 h). They're sized to the
+memory; the CPU (below) is what limits sustained throughput. Grafana's capacity planning figures, before the 50 % headroom it adds on top, are:
 - ingester: 2.5 GB per 300k in-memory series, 16.7 GB at 2M;
 - distributor: 1 GB per 25k samples/s, 4.8 GB at 120k;
 - compactor: 4 GB.
 
-That's ~25.5 GB (23.7 GiB), under Go's soft memory limit (80 % of the instance's memory, 25 GiB on the
-`r7i.xlarge`'s 32 GiB). The cgroup's hard limit is at 92 %. The caps haven't been load tested; a synthetic load
-(e.g. `avalanche`) would confirm them before anyone relies on them.
+That's ~25.5 GB (23.7 GiB) for ingestion and compaction alone. Go's soft memory limit is 80 % of MemTotal, ~25
+GiB on the `r7i.xlarge` (MemTotal is a little under its 32 GiB), and the cgroup's hard limit is at 92 %. That
+leaves about 1 GiB for queries, which the guards allow up to 2 GiB each, 4 at a time, and none of Grafana's
+50 % headroom. So the caps hold at the expected load; at the caps with dashboards querying they're untested.
+A synthetic load (e.g. `avalanche`) would confirm them before anyone relies on them.
 
 **CPU** is the compromise. The same guidance asks for 1 core per 25k samples/s and 1 per 300k series, about 12
-cores at the caps, against the `r7i.xlarge`'s 4 vCPU (2 physical cores). At the expected load that's plenty.
-The `cpu` alarm (85 % for 15 minutes) says when it isn't. The options:
+cores at the caps, against the `r7i.xlarge`'s 4 vCPU (2 physical cores). By that guidance this box sustains
+roughly 25–50k samples/s, not the 120k cap: bursts above that are absorbed but sustained ingest at the cap
+isn't rated, and nothing has been load tested. At the expected load (a few thousand samples/s) that's plenty.
+The `cpu` alarm (85 % for 15 minutes) says when it isn't. For sustained ingest near the caps, take the
+`r7g.xlarge` (4 physical cores) or a 2xlarge. The options:
 
 | instance | vCPU (cores) | memory | $/month | note |
 |---|---|---|---|---|
-| `m7i.xlarge` | 4 (2) | 16 GiB | ~147 | enough for the expected load, but only with the caps cut to ~0.9M series / 75k samples/s |
+| `m7i.xlarge` | 4 (2) | 16 GiB | ~147 | enough for the expected load, but only with the caps cut to ~0.75M series / 75k samples/s |
 | `r7i.xlarge` (default) | 4 (2) | 32 GiB | ~193 | the caps above |
 | `r7g.xlarge` | 4 (4) | 32 GiB | ~156 | Graviton: same memory, twice the cores, cheaper; needs an arm64 `instance_ami` ("Graviton" below) |
 | `m7i.2xlarge` | 8 (4) | 32 GiB | ~294 | more CPU, same caps |
@@ -195,7 +208,8 @@ The `cpu` alarm (85 % for 15 minutes) says when it isn't. The options:
 caps:
 - the ingester's WAL, head and last 13 h of blocks: 5 GB per 300k series, ~33 GB;
 - compaction scratch: a 24 h block of the busiest tenant plus its sources, up to ~30 GB;
-- the store-gateway's index headers: ~13 GB a year per 1M active series, more with churn, kept forever.
+- the store-gateway's index headers: Grafana's 13 GB per 1M active series, taken here as a year's worth (it
+  gives no time basis), more with churn, kept forever.
 
 At the caps that's ~90 GB in the first year, growing ~25 GB a year. At the expected load it's under 10 GB. The
 `disk-data` alarm fires at 80 %, and the disk grows in place (runbook).
@@ -207,7 +221,7 @@ CloudWatch ~$8 (13 alarms, ~13 custom metrics, one watchdog call a minute, logs;
 evaluation lines aren't shipped), S3 requests ~$1–3. That's ~$220.
 
 S3 storage grows with what's kept, at roughly 1.5–2.5 bytes a sample (more with high churn):
-- at the expected ~2k samples/s, ~0.3 GB a day, cents per month;
+- at ~2k samples/s (two concurrent runs), ~0.3 GB a day, cents per month;
 - at a sustained 20k samples/s, ~3 GB a day, ~$2 a month more for each month kept (~$25/month after a year),
   plus ~180 GB of compaction sources kept 30 days as old versions (~$4/month).
 
@@ -250,7 +264,7 @@ forward is admin access, so it has no credentials:
 aws ssm start-session --target "$IID" --document-name AWS-StartPortForwardingSession \
   --parameters portNumber=9009,localPortNumber=19009 &
 until curl -s localhost:19009/ready >/dev/null; do sleep 1; done
-curl -s -H 'X-Scope-OrgID: ultra' 'localhost:19009/prometheus/api/v1/label/source_run_id/values' | jq .
+curl -s -H 'X-Scope-OrgID: ultra' 'localhost:19009/prometheus/api/v1/label/__name__/values' | jq .
 kill %1   # when done
 ```
 A local Grafana works the same way: a Prometheus datasource with URL `http://localhost:19009/prometheus` and a
@@ -283,8 +297,7 @@ datasources:
       manageAlerts: false                         # else the alert list asks this datasource for rules (403)
     editable: false
 ```
-The password reaches Grafana the way the Pyroscope read credential does (a secret synced into the Grafana pod's
-environment). Grafana's requests must leave from an address in `read_allowed_cidrs`. Alerting rules, recording
+The password reaches Grafana from a secret in the Grafana deployment's environment, never from a repository. Grafana's requests must leave from an address in `read_allowed_cidrs`. Alerting rules, recording
 rules and `status/*` aren't served (the two switches above keep Grafana from asking). Exemplars aren't either,
 and Grafana detects that by itself.
 
@@ -302,9 +315,6 @@ their buffer).
    is lost.
 4. Health check. If the bootstrap failed (`/var/log/server-init.log`) on a transient download, re-run it:
    `cloud-init single --name scripts_user --frequency always` (idempotent).
-
-The user-data is the template with its whole-line comments stripped (EC2 allows 16 KB, gzipped): read the
-template, not the copy on the instance.
 
 ### Graviton (r7g)
 
@@ -334,6 +344,10 @@ terraform apply new.tfplan
 If the old volume still exists, it's now outside Terraform (no `prevent_destroy`) and still billed: snapshot it
 if in doubt, then delete it. `Ready`, `certificate-days-left` and `disk-data` alarm during the swap.
 
+A boot that died in the middle of `mkfs` can leave a volume with no filesystem that isn't blank either; the
+bootstrap then refuses to format it (`not formatting it` in `/var/log/server-init.log`). It holds nothing:
+`wipefs -a <device>` on it, then re-run the bootstrap.
+
 ### Block uploads failing or compactor stale
 
 The data volume has no snapshots because S3 has every shipped block; the `block-upload-failures` and
@@ -352,11 +366,11 @@ server's can't touch versions):
 TM=<UTC time just before the purge, e.g. 2026-10-06T09:00:00>; PFX=blocks/<tenant>/
 aws s3api list-object-versions --bucket "$B" --prefix "$PFX" --output json \
   | jq -r --arg t "$TM" '.DeleteMarkers[]? | select(.IsLatest and .LastModified >= $t) | [.Key,.VersionId] | @tsv' > markers.tsv
-while IFS=$'\t' read -r k v; do aws s3api delete-object --bucket "$B" --key "$k" --version-id "$v" >/dev/null; done < markers.tsv
+while IFS=$'\t' read -r k v; do aws s3api delete-object --bucket "$B" --key "$k" --version-id "$v" >/dev/null </dev/null; done < markers.tsv
 # The compactor's deletion marks written since then would delete those blocks again:
 aws s3api list-objects-v2 --bucket "$B" --prefix "$PFX" --output json \
   | jq -r --arg t "$TM" '.Contents[]? | select((.Key | endswith("deletion-mark.json")) and .LastModified >= $t) | .Key' \
-  | while read -r k; do aws s3 rm "s3://$B/$k"; done
+  | while read -r k; do aws s3 rm "s3://$B/$k" </dev/null; done
 ```
 Then `rm /data/.hold && systemctl start mimir`; the compactor rebuilds the tenant's bucket index within the hour.
 
@@ -383,5 +397,5 @@ Renewed by `certbot.timer` (webroot, nginx reload hook); stored on `/data`, so a
 ### Decommission
 
 In a reviewed PR remove the `prevent_destroy`s and `disable_api_termination`, decide whether the bucket is kept;
-`terraform destroy` (the data volume leaves a final snapshot); delete the DNS records and the
+`terraform destroy` (the data volume leaves a final snapshot: tag it `team`/`owner` by hand); delete the DNS records and the
 `htpasswd/{push,read}` parameters (written by hand, so Terraform doesn't).

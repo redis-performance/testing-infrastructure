@@ -141,8 +141,8 @@ resource "aws_cloudwatch_metric_alarm" "certificate" {
 }
 
 # Samples Mimir dropped (per-tenant series and rate limits, too old or out of the out-of-order window,
-# invalid labels), summed over all reasons and tenants: the watchdog publishes the increase per minute from
-# cortex_discarded_samples_total. The logs say which tenant and why.
+# invalid labels; cortex_discarded_samples_total, all reasons and tenants) plus pushes refused at the
+# server-wide caps: the watchdog publishes the increase per minute. The logs say which tenant and why.
 resource "aws_cloudwatch_metric_alarm" "discarded" {
   alarm_name          = "${local.name}-discarded-samples"
   namespace           = "PerfMimir"
@@ -212,7 +212,8 @@ resource "aws_cloudwatch_metric_alarm" "shipper" {
   tags                = local.tags
 }
 
-# ... and the compactor (hourly) not having finished a run for 6 hours.
+# ... and the compactor (hourly) not having finished a run for 6 hours (counted from Mimir's start until its
+# first success, so one that never succeeds alarms too).
 resource "aws_cloudwatch_metric_alarm" "compactor" {
   alarm_name          = "${local.name}-compactor-stale"
   namespace           = "PerfMimir"

@@ -11,12 +11,12 @@ resource "aws_ssm_parameter" "tenants" {
   tags        = local.tags
 }
 
-# Per-tenant limit overrides, as Mimir's runtime configuration (every tenant listed, {} for the defaults).
-# A Standard parameter holds 4 KB: a few dozen tenants' overrides.
+# Per-tenant limit overrides, as Mimir's runtime configuration (every tenant listed, {} for the defaults; the
+# typed variable means only known limits with valid values get here). A Standard parameter holds 4 KB.
 resource "aws_ssm_parameter" "runtime_overrides" {
   name        = "${local.ssm_prefix}/runtime-overrides"
   description = "Mimir per-tenant limit overrides (runtime config)"
   type        = "String"
-  value       = yamlencode({ overrides = { for t, l in var.tenants : t => l == null ? {} : l } })
+  value       = yamlencode({ overrides = { for t, l in var.tenants : t => { for k, v in l : k => v if v != null } } })
   tags        = local.tags
 }

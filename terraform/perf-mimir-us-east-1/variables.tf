@@ -93,8 +93,10 @@ variable "read_allowed_cidrs" {
   type        = list(string)
   default     = ["35.174.252.24/32"]
   validation {
-    condition     = alltrue([for c in var.read_allowed_cidrs : can(cidrhost(c, 0)) && try(tonumber(split("/", c)[1]) >= 16, false)])
-    error_message = "read_allowed_cidrs must be CIDRs no wider than /16 (specific NAT egress addresses)."
+    condition = alltrue([for c in var.read_allowed_cidrs : can(cidrnetmask(c)) && try(
+      tonumber(split("/", c)[1]) >= 16 && cidrhost(c, 0) == split("/", c)[0], false
+    )])
+    error_message = "read_allowed_cidrs must be canonical IPv4 CIDRs no wider than /16 (specific NAT egress addresses)."
   }
 }
 
@@ -126,7 +128,7 @@ variable "max_series_per_tenant" {
   type        = number
   default     = 300000
   validation {
-    condition     = var.max_series_per_tenant > 0 && floor(var.max_series_per_tenant) == var.max_series_per_tenant
+    condition     = var.max_series_per_tenant > 0 && floor(var.max_series_per_tenant) == var.max_series_per_tenant && var.max_series_per_tenant <= 1e15
     error_message = "max_series_per_tenant must be a positive integer."
   }
 }
@@ -146,7 +148,7 @@ variable "ingestion_burst_size" {
   type        = number
   default     = 200000
   validation {
-    condition     = var.ingestion_burst_size > 0 && floor(var.ingestion_burst_size) == var.ingestion_burst_size
+    condition     = var.ingestion_burst_size > 0 && floor(var.ingestion_burst_size) == var.ingestion_burst_size && var.ingestion_burst_size <= 1e15
     error_message = "ingestion_burst_size must be a positive integer."
   }
 }
@@ -155,7 +157,7 @@ variable "max_label_names_per_series" {
   type    = number
   default = 64
   validation {
-    condition     = var.max_label_names_per_series > 0 && floor(var.max_label_names_per_series) == var.max_label_names_per_series
+    condition     = var.max_label_names_per_series > 0 && floor(var.max_label_names_per_series) == var.max_label_names_per_series && var.max_label_names_per_series <= 1e15
     error_message = "max_label_names_per_series must be a positive integer."
   }
 }
@@ -164,7 +166,7 @@ variable "max_label_name_length" {
   type    = number
   default = 1024
   validation {
-    condition     = var.max_label_name_length > 0 && floor(var.max_label_name_length) == var.max_label_name_length
+    condition     = var.max_label_name_length > 0 && floor(var.max_label_name_length) == var.max_label_name_length && var.max_label_name_length <= 1e15
     error_message = "max_label_name_length must be a positive integer."
   }
 }
@@ -174,7 +176,7 @@ variable "max_label_value_length" {
   type        = number
   default     = 4096
   validation {
-    condition     = var.max_label_value_length > 0 && floor(var.max_label_value_length) == var.max_label_value_length
+    condition     = var.max_label_value_length > 0 && floor(var.max_label_value_length) == var.max_label_value_length && var.max_label_value_length <= 1e15
     error_message = "max_label_value_length must be a positive integer."
   }
 }
@@ -195,7 +197,7 @@ variable "max_series_total" {
   type        = number
   default     = 2000000
   validation {
-    condition     = var.max_series_total > 0 && floor(var.max_series_total) == var.max_series_total
+    condition     = var.max_series_total > 0 && floor(var.max_series_total) == var.max_series_total && var.max_series_total <= 1e15
     error_message = "max_series_total must be a positive integer."
   }
 }
@@ -211,12 +213,22 @@ variable "max_ingestion_rate_total" {
 }
 
 # The tenants that exist: nginx admits only users of these tenants (<tenant>-<role>-<1|2>), so a new tenant
-# is a reviewed change here. The value overrides the default limits for that tenant ({} for the defaults);
-# field names are Mimir's limits (YAML) names. Applied in place, within about 5 minutes. Never reuse a removed
-# tenant's name: its data is kept, and the new owner would see it.
+# is a reviewed change here. Each may override the default limits (omitted fields keep the defaults). Applied
+# in place, within about 5 minutes. Never reuse a removed tenant's name: its data is kept, and the new owner
+# would see it.
 variable "tenants" {
-  description = "Tenant name => Mimir limit overrides for it ({} for the defaults)"
-  type        = any
+  description = "Tenant name => limit overrides ({} for the defaults). Only the fields below; Terraform drops any other key."
+  type = map(object({
+    max_global_series_per_user                 = optional(number)
+    ingestion_rate                             = optional(number)
+    ingestion_burst_size                       = optional(number)
+    max_label_names_per_series                 = optional(number)
+    out_of_order_time_window                   = optional(string)
+    compactor_blocks_retention_period          = optional(string)
+    max_estimated_memory_consumption_per_query = optional(number)
+    max_fetched_chunk_bytes_per_query          = optional(number)
+    max_fetched_series_per_query               = optional(number)
+  }))
   default = {
     # Redis Ultra perf benchmarks: a few concurrent runs, each a few thousand to tens of thousands of series.
     ultra = {
@@ -226,12 +238,22 @@ variable "tenants" {
     }
   }
   validation {
-    condition = (
-      can(keys(var.tenants)) && length(keys(var.tenants)) > 0 &&
-      alltrue([for t in keys(var.tenants) : can(regex("^[a-z][a-z0-9_]{0,31}$", t))]) &&
-      alltrue([for v in values(var.tenants) : v == null || can(keys(v))])
-    )
-    error_message = "tenants must be a non-empty map from tenant names ([a-z][a-z0-9_]{0,31}) to maps of Mimir limits ({} for the defaults)."
+    condition = (length(var.tenants) > 0 && alltrue([for t in keys(var.tenants) : can(regex("^[a-z][a-z0-9_]{0,31}$", t))]) &&
+    alltrue([for l in values(var.tenants) : l != null]))
+    error_message = "tenants must be a non-empty map keyed by tenant names ([a-z][a-z0-9_]{0,31}), each with an object of limits ({} for the defaults)."
+  }
+  # Every number is a non-negative integer except ingestion_rate (samples/s); Mimir would round a fraction.
+  validation {
+    condition = try(alltrue(flatten([for t, l in var.tenants : [
+      for k, v in l : v >= 0 && v <= 1e15 && (k == "ingestion_rate" || floor(v) == v) if v != null && !contains(["out_of_order_time_window", "compactor_blocks_retention_period"], k)
+    ]])), false)
+    error_message = "tenants: limits must be numbers from 0 to 1e15, and integers (except ingestion_rate)."
+  }
+  validation {
+    condition = try(alltrue(flatten([for t, l in var.tenants : [
+      for v in [l.out_of_order_time_window, l.compactor_blocks_retention_period] : can(regex("^(0|([0-9]+(y|w|d|h|m|s|ms))+)$", v)) if v != null
+    ]])), false)
+    error_message = "tenants: out_of_order_time_window and compactor_blocks_retention_period must be 0 or durations such as 2h."
   }
 }
 

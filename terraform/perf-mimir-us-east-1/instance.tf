@@ -31,9 +31,8 @@ resource "aws_instance" "server" {
   }
 
   # The bootstrap is idempotent and keeps nothing on the root disk that matters (the TSDB, the WAL and the
-  # certificates are on the data volume), so a changed bootstrap replaces the instance. Whole-line comments
-  # (not #!) are stripped to stay under EC2's 16 KB user-data limit: the template is the documented copy.
-  user_data_base64 = base64gzip(replace(templatefile("${path.module}/server-init.sh.tftpl", {
+  # certificates are on the data volume), so a changed bootstrap replaces the instance.
+  user_data_base64 = base64gzip(templatefile("${path.module}/server-init.sh.tftpl", {
     region                     = var.region
     bucket                     = aws_s3_bucket.blocks.id
     mimir_version              = var.mimir_version
@@ -58,7 +57,7 @@ resource "aws_instance" "server" {
     log_group_mimir            = aws_cloudwatch_log_group.mimir.name
     log_group_nginx            = aws_cloudwatch_log_group.nginx.name
     log_group_system           = aws_cloudwatch_log_group.system.name
-  }), "/(?m)^[ \\t]*#([^!\\n][^\\n]*)?\\n/", ""))
+  }))
   user_data_replace_on_change = true
 
   tags = local.tags
@@ -70,7 +69,7 @@ resource "aws_instance" "server" {
 # The ingester's TSDB (WAL, head, the blocks of the last 13 h), the store-gateway's index headers, compaction
 # scratch space and the TLS certificates. It survives instance replacement, so a replaced instance replays the
 # WAL and loses nothing. S3 holds every shipped block, so the volume isn't snapshotted: losing it loses at most
-# the samples not yet shipped (about the last 2 hours).
+# the samples not yet shipped (up to the last 2-3 hours).
 resource "aws_ebs_volume" "data" {
   availability_zone = var.availability_zone
   size              = var.data_volume_size_gb

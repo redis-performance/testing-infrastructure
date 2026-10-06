@@ -36,12 +36,12 @@ DPkg::Lock::Timeout "600";
 Acquire::Retries "5";
 APT
 apt-get update -y
-apt-get install -y --no-install-recommends certbot unzip curl openssl gnupg ca-certificates unattended-upgrades python3-yaml logrotate
+apt-get install -y --no-install-recommends certbot unzip curl openssl gnupg ca-certificates unattended-upgrades logrotate
 
 # --- nginx from nginx.org (${nginx_channel}) ----------------------------------------------------------
 # The signing keys are pinned by fingerprint (https://nginx.org/en/linux_packages.html); apt prefers this
 # origin for nginx, and unattended-upgrades applies its updates like Ubuntu's security updates.
-curl -fsSL https://nginx.org/keys/nginx_signing.key | gpg --dearmor > /tmp/nginx-keyring.gpg
+curl -fsSL --connect-timeout 10 --max-time 120 --retry 5 --retry-all-errors https://nginx.org/keys/nginx_signing.key | gpg --dearmor > /tmp/nginx-keyring.gpg
 for fpr in $(gpg --show-keys --with-colons /tmp/nginx-keyring.gpg | awk -F: '/^pub/ {p = 1; next} /^fpr/ && p {print $10; p = 0}'); do
   case "$fpr" in
     573BFD6B3D8FBC641079A6ABABF5BD827BD9BF62 | 8540A6F18833A80E9C1653A42FD21310B49F6B46 | 9E9BE90EACBCDE69FE9B204CBCDCD8A38D88A2B3) ;;
@@ -61,7 +61,7 @@ nginx -v
 
 # AWS CLI v2 (SSM, the health metrics).
 if ! command -v aws >/dev/null; then
-  curl -fsSL "https://awscli.amazonaws.com/awscli-exe-linux-$AWSCLI_ARCH.zip" -o /tmp/awscli.zip
+  curl -fsSL --connect-timeout 10 --max-time 600 --retry 5 --retry-all-errors "https://awscli.amazonaws.com/awscli-exe-linux-$AWSCLI_ARCH.zip" -o /tmp/awscli.zip
   unzip -q /tmp/awscli.zip -d /tmp && /tmp/aws/install --update && rm -rf /tmp/aws /tmp/awscli.zip
 fi
 
@@ -117,7 +117,7 @@ if [ ! -L /etc/letsencrypt ]; then rm -rf /etc/letsencrypt; ln -s /data/letsencr
 BIN=/usr/local/lib/mimir/mimir-$MIMIR_VERSION
 mkdir -p /usr/local/lib/mimir
 if ! echo "$MIMIR_SHA256  $BIN" | sha256sum -c --status 2>/dev/null; then
-  curl -fsSL --connect-timeout 10 --max-time 900 --retry 8 --retry-delay 15 --retry-all-errors -o "$BIN.download" \
+  curl -fsSL --connect-timeout 10 --max-time 900 --retry 8 --retry-delay 15 --retry-max-time 1800 --retry-all-errors -o "$BIN.download" \
     "https://github.com/grafana/mimir/releases/download/mimir-$MIMIR_VERSION/mimir-linux-$ARCH" ||
     { echo "server-init: mimir $MIMIR_VERSION download failed (re-run the bootstrap: README, planned replacement)"; exit 1; }
   echo "$MIMIR_SHA256  $BIN.download" | sha256sum -c - || { echo "server-init: mimir $MIMIR_VERSION checksum mismatch"; rm -f "$BIN.download"; exit 1; }
@@ -232,17 +232,6 @@ exec /usr/local/bin/mimir -config.file=/etc/mimir/config.yaml
 SCRIPT
 chmod 0755 /usr/local/sbin/mimir-start
 
-cat > /usr/local/sbin/mimir-prestart <<'SCRIPT'
-#!/bin/sh
-f=/etc/mimir/runtime.yaml
-if ! why=$(python3 /usr/local/lib/mimir/check-overrides.py /etc/mimir/config.yaml /usr/local/bin/mimir < "$f" 2>&1); then
-  echo "mimir-prestart: $f refused ($why); starting with no overrides"
-  echo "overrides: {}" > "$f" && chown root:mimir "$f" && chmod 0640 "$f"
-fi
-exit 0
-SCRIPT
-chmod 0755 /usr/local/sbin/mimir-prestart
-
 cat > /etc/systemd/system/mimir.service <<'UNIT'
 [Unit]
 Description=Grafana Mimir (monolithic, blocks on S3)
@@ -258,9 +247,6 @@ StartLimitIntervalSec=0
 User=mimir
 Group=mimir
 WorkingDirectory=/data/mimir
-# Never start on a runtime config the check refuses (a binary or config change can make an old one invalid):
-# fall back to no overrides, which mimir-limits then flags (the config-rejected alarm) and retries.
-ExecStartPre=+/usr/local/sbin/mimir-prestart
 ExecStart=/usr/local/sbin/mimir-start
 Restart=always
 RestartSec=10
@@ -314,119 +300,28 @@ TMP
 systemd-tmpfiles --create /etc/tmpfiles.d/perf-mimir.conf
 
 # --- Per-tenant limits: SSM -> Mimir's runtime config --------------------------------------------------
-cat > /usr/local/lib/mimir/check-overrides.py <<'PY'
-# check-overrides.py CONFIG MIMIR < runtime.yaml: exits nonzero unless stdin is
-# {"overrides": {tenant: {limit: value}}} with well-formed tenant names and limits this Mimir takes as given.
-# Each tenant's limits go into a copy of the server's config, which the binary parses, validates and prints
-# back (-print.config): a wrong name, type or value (or one Mimir would silently round) is refused here, not
-# by a running Mimir, or by one that then can't start.
-import copy
-import re
-import subprocess
-import sys
-import tempfile
-
-import yaml
-
-UNITS = {"ms": 0.001, "s": 1, "m": 60, "h": 3600, "d": 86400, "w": 604800, "y": 31536000}
-
-
-def seconds(v):
-    if v == 0 or v == "0":
-        return 0.0
-    if isinstance(v, str) and re.fullmatch(r"([0-9]+(ms|s|m|h|d|w|y))+", v):
-        return sum(int(n) * UNITS[u] for n, u in re.findall(r"([0-9]+)(ms|s|m|h|d|w|y)", v))
-    return None
-
-
-def same(want, got):
-    if isinstance(want, bool) or isinstance(got, bool):
-        return want is got
-    if isinstance(want, (int, float)) and isinstance(got, (int, float)):
-        return float(want) == float(got)
-    if seconds(want) is not None and seconds(got) is not None:
-        return seconds(want) == seconds(got)
-    return want == got
-
-
-config, binary = sys.argv[1], sys.argv[2]
-base = yaml.safe_load(open(config))
-base.pop("runtime_config", None)
-try:
-    doc = yaml.safe_load(sys.stdin)
-except yaml.YAMLError as e:
-    sys.exit("not YAML: %s" % e)
-if not isinstance(doc, dict) or set(doc) != {"overrides"}:
-    sys.exit("the top level must be exactly 'overrides'")
-overrides = doc["overrides"] or {}
-if not isinstance(overrides, dict):
-    sys.exit("'overrides' must be a map")
-for tenant, limits in overrides.items():
-    if not isinstance(tenant, str) or not re.fullmatch(r"[a-z][a-z0-9_]{0,31}", tenant):
-        sys.exit("bad tenant name: %r" % (tenant,))
-    if limits is None or limits == {}:
-        continue
-    if not isinstance(limits, dict):
-        sys.exit("%s: limits must be a map" % tenant)
-    cfg = copy.deepcopy(base)
-    cfg.setdefault("limits", {}).update(limits)
-    with tempfile.NamedTemporaryFile("w", suffix=".yaml") as f:
-        yaml.safe_dump(cfg, f)
-        f.flush()
-        r = subprocess.run([binary, "-config.file=" + f.name, "-print.config"], capture_output=True, text=True, timeout=120)
-    if r.returncode != 0:
-        sys.exit("%s: Mimir refuses these limits: %s" % (tenant, (r.stderr.strip().splitlines() or ["?"])[-1][:300]))
-    printed = (yaml.safe_load(r.stdout) or {}).get("limits", {})
-    for name, value in limits.items():
-        if name not in printed:
-            sys.exit("%s: unknown limit %s" % (tenant, name))
-        if not same(value, printed[name]):
-            sys.exit("%s: %s: %r would become %r" % (tenant, name, value, printed[name]))
-PY
 cat > /usr/local/sbin/mimir-limits <<'SCRIPT'
 #!/bin/bash
-# The per-tenant overrides come from an SSM parameter Terraform writes (`tenants`). A missing parameter means
-# no overrides; an SSM error or a value the check rejects keeps the current file. Mimir re-reads the file
-# every 10 s. The check runs the new value through the Mimir binary first; if the running Mimir still refuses
-# it (it then keeps the last good one), the previous file is put back, so a restart doesn't fail on it, and
-# that value isn't tried again. /run/perf-mimir/limits.rejected
-# is 1 while the parameter's value isn't in force (the watchdog alarms on it).
+# The per-tenant overrides come from an SSM parameter Terraform writes from `tenants` (typed and validated
+# there). Mimir re-reads the file every 10 s and keeps the last good one if a reload fails (the watchdog
+# alarms on that). A missing parameter means no overrides; an SSM error keeps the current file.
 set -u
+umask 027
 . /etc/default/perf-mimir
 f=/etc/mimir/runtime.yaml
 st=/run/perf-mimir
 install -d -m 0700 "$st"
-refused=/data/.mimir-limits.refused # on the data volume: a replacement doesn't retry a refused value
-log() { echo "$(date -u +%FT%TZ) mimir-limits: $*"; }
 if ! new=$(aws ssm get-parameter --region "$REGION" --name "$SSM_PREFIX/runtime-overrides" \
   --query Parameter.Value --output text 2>"$st/limits.err"); then
   if grep -q ParameterNotFound "$st/limits.err"; then new="overrides: {}"; else
-    log "SSM error, keeping the current file: $(head -c 300 "$st/limits.err")"
+    echo "$(date -u +%FT%TZ) mimir-limits: SSM error, keeping the current file: $(head -c 300 "$st/limits.err")"
     exit 0
   fi
 fi
-if [ "$new" = "$(cat "$f" 2>/dev/null)" ]; then echo 0 > "$st/limits.rejected"; exit 0; fi
-if [ "$new" = "$(cat "$refused" 2>/dev/null)" ]; then echo 1 > "$st/limits.rejected"; exit 0; fi
-if ! why=$(printf '%s\n' "$new" | python3 /usr/local/lib/mimir/check-overrides.py /etc/mimir/config.yaml /usr/local/bin/mimir 2>&1); then
-  log "rejected ($why), keeping the current file"
-  printf '%s\n' "$new" > "$refused"
-  echo 1 > "$st/limits.rejected"
-  exit 0
-fi
-cp -p "$f" "$f.prev"
-printf '%s\n' "$new" > "$f.tmp" && chown root:mimir "$f.tmp" && chmod 0640 "$f.tmp" && mv "$f.tmp" "$f"
-log "runtime overrides updated"
-echo 0 > "$st/limits.rejected"
-# /metrics answers while the WAL replays, unlike /ready.
-if curl -sf -m 5 -o /dev/null http://127.0.0.1:9009/metrics; then
-  sleep 15
-  if curl -sf -m 10 http://127.0.0.1:9009/metrics | grep -q '^cortex_runtime_config_last_reload_successful{[^}]*} 0$'; then
-    mv "$f.prev" "$f"
-    printf '%s\n' "$new" > "$refused"
-    echo 1 > "$st/limits.rejected"
-    log "Mimir refused the new overrides (mimir.log says why); put the previous ones back"
-  fi
-fi
+date +%s > "$st/limits.last_ok"
+[ "$new" = "$(cat "$f" 2>/dev/null)" ] && exit 0
+printf '%s\n' "$new" > "$f.tmp" && chown root:mimir "$f.tmp" && mv "$f.tmp" "$f" &&
+  echo "$(date -u +%FT%TZ) mimir-limits: runtime overrides updated"
 exit 0
 SCRIPT
 chmod 0755 /usr/local/sbin/mimir-limits
@@ -441,6 +336,7 @@ Restart=on-failure
 RestartSec=5
 UNIT
 mkdir -p /etc/nginx/htpasswd /var/www/acme /etc/nginx/perf
+chown root:nginx /etc/nginx/htpasswd && chmod 0750 /etc/nginx/htpasswd
 for role in push read; do
   [ -e /etc/nginx/htpasswd/$role ] || install -m 0640 -o root -g nginx /dev/null /etc/nginx/htpasswd/$role
 done
@@ -450,23 +346,27 @@ cat > /usr/local/sbin/mimir-credentials <<'SCRIPT'
 # user, users named <tenant>-<role>-<1|2>. nginx sends the tenant part as X-Scope-OrgID, so whoever writes
 # the parameter decides which tenant a credential reaches; a client never does. Only the tenants Terraform
 # lists ($SSM_PREFIX/tenants) are admitted. Each line is checked on its own: SHA-512 crypt, a well-formed
-# name for the role's own file, a listed tenant. Bad lines are dropped and logged (and counted in
-# /run/perf-mimir/credentials.rejected, which the watchdog alarms on); the good ones are installed. A missing
-# parameter empties the file (every request then fails authentication: closed; deleting the parameter
-# revokes the role for every tenant); an SSM error keeps the current file.
+# name for the role's own file, a listed tenant, not a repeated name. Bad lines are dropped, logged (by user
+# name only) and counted in /run/perf-mimir/credentials.rejected; the good ones are installed. A missing
+# parameter empties the file (deleting it revokes the role for every tenant); an SSM error keeps the current
+# file, and /run/perf-mimir/credentials.last_ok stops advancing (the watchdog alarms on both).
 set -u
+umask 027
 . /etc/default/perf-mimir
 st=/run/perf-mimir
 install -d -m 0700 "$st"
 log() { echo "$(date -u +%FT%TZ) mimir-credentials: $*"; }
+ok=1
 # The tenant list, cached so an SSM error keeps the last one.
 tenants=/etc/nginx/perf/tenants
 if t=$(aws ssm get-parameter --region "$REGION" --name "$SSM_PREFIX/tenants" --query Parameter.Value --output text 2>"$st/credentials.err"); then
+  bad=$(printf '%s\n' "$t" | grep -cvxE '[a-z][a-z0-9_]{0,31}')
+  [ "$bad" -gt 0 ] && log "tenants: ignored $bad malformed entr(ies)"
   printf '%s\n' "$t" | grep -xE '[a-z][a-z0-9_]{0,31}' > "$tenants.tmp"; mv "$tenants.tmp" "$tenants"
 elif grep -q ParameterNotFound "$st/credentials.err"; then
   : > "$tenants"
 else
-  log "tenants: SSM error, keeping the current list: $(head -c 300 "$st/credentials.err")"
+  log "tenants: SSM error, keeping the current list: $(head -c 300 "$st/credentials.err")"; ok=0
 fi
 touch "$tenants"
 changed=0
@@ -476,31 +376,42 @@ for role in push read; do
   if ! new=$(aws ssm get-parameter --region "$REGION" --with-decryption --name "$SSM_PREFIX/htpasswd/$role" \
     --query Parameter.Value --output text 2>"$st/credentials.err"); then
     if grep -q ParameterNotFound "$st/credentials.err"; then new=""; else
-      log "$role: SSM error, keeping the current file: $(head -c 300 "$st/credentials.err")"
+      log "$role: SSM error, keeping the current file: $(head -c 300 "$st/credentials.err")"; ok=0
       continue
     fi
   fi
-  good=""
+  good=""; seen=" "; n=0
   while IFS= read -r line; do
-    [ -z "$line" ] && continue
+    n=$(( n + 1 ))
+    line=$${line%$'\r'}
+    [ -z "$${line//[[:space:]]/}" ] && continue
     user=$${line%%:*}
+    # Only a plausible user name is ever logged: a malformed line may be a hash or a pasted password.
+    if [ "$user" != "$line" ] && [[ $user =~ ^[a-z0-9_-]{1,40}$ ]]; then who="$user"; else who="line $n"; fi
     if ! printf '%s\n' "$line" | grep -qE "^[a-z][a-z0-9_]{0,31}-$role-[12]:\\\$6\\\$[./A-Za-z0-9]{1,16}\\\$[./A-Za-z0-9]{86}\$"; then
-      log "$role: dropped a malformed line (user '$${user:0:40}'; only <tenant>-$role-1|2 with a SHA-512 crypt hash)"
+      log "$role: dropped $who: malformed (only <tenant>-$role-1|2 with a SHA-512 crypt hash)"
       rejected=$(( rejected + 1 )); continue
     fi
     if ! grep -qxF "$${user%-$role-*}" "$tenants"; then
       log "$role: dropped $user: tenant $${user%-$role-*} isn't in $SSM_PREFIX/tenants"
       rejected=$(( rejected + 1 )); continue
     fi
+    if [[ $seen == *" $user "* ]]; then
+      log "$role: dropped a repeated $user line (the first one stays)"
+      rejected=$(( rejected + 1 )); continue
+    fi
+    seen="$seen$user "
     good="$good$line"$'\n'
   done <<< "$new"
   if [ "$(printf '%s' "$good")" != "$(cat "$f" 2>/dev/null)" ]; then
-    printf '%s' "$good" > "$f.tmp" && chown root:nginx "$f.tmp" && chmod 0640 "$f.tmp" && mv "$f.tmp" "$f"
+    printf '%s' "$good" > "$f.tmp" && chown root:nginx "$f.tmp" && mv "$f.tmp" "$f"
     log "$role: $(grep -c . "$f") user(s), tenants: $(cut -d- -f1 "$f" | sort -u | paste -sd, -)"
     changed=1
   fi
 done
 echo "$rejected" > "$st/credentials.rejected"
+[ "$ok" = 1 ] && date +%s > "$st/credentials.last_ok"
+# nginx reads the user files on every request; the reload only checks the configuration is still valid.
 if [ "$changed" = 1 ]; then nginx -t -q && systemctl reload nginx; fi
 exit 0
 SCRIPT
@@ -632,12 +543,14 @@ cat > /usr/local/sbin/mimir-watchdog <<'SCRIPT'
 #   Ready                      1 when Mimir is ready and nginx serves /healthz (on 443 once the
 #                              certificate is there, on 80 before);
 #   CertDaysLeft               days the certificate has left (0 before it exists);
-#   ConfigRejected             credential lines dropped plus 1 if the tenant overrides aren't in force;
+#   ConfigRejected             dropped credential lines + 1 if Mimir refused the runtime config + 1 per
+#                              SSM source not read for 20 minutes;
 # and, while Mimir is ready:
-#   DiscardedSamples           the increase of cortex_discarded_samples_total (all reasons and tenants);
+#   DiscardedSamples           samples Mimir dropped (cortex_discarded_samples_total, all reasons and
+#                              tenants) plus pushes refused at the server-wide caps, since the last run;
 #   SeriesUsedPercent          in-memory series across tenants, as a percentage of MAX_SERIES_TOTAL;
-#   ShipperFailures            the increase of failed block uploads to S3;
-#   CompactorHoursSinceSuccess hours since the compactor last finished a run.
+#   ShipperFailures            failed block uploads to S3 since the last run;
+#   CompactorHoursSinceSuccess hours since the compactor last finished a run (or since Mimir started).
 # It only reports: a Mimir that isn't ready may be replaying its WAL, which mustn't be interrupted.
 set -u
 . /etc/default/perf-mimir
@@ -647,12 +560,25 @@ token=$(curl -s -m 2 -X PUT http://169.254.169.254/latest/api/token -H "X-aws-ec
 iid=$(curl -s -m 2 -H "X-aws-ec2-metadata-token: $token" http://169.254.169.254/latest/meta-data/instance-id)
 case "$iid" in i-*) ;; *) echo "mimir-watchdog: no instance id from IMDS"; exit 1 ;; esac
 data=""
-add() { data="$data$${data:+,}{\"MetricName\":\"$1\",\"Value\":$2,\"Dimensions\":[{\"Name\":\"InstanceId\",\"Value\":\"$iid\"}]}"; }
-# The increase of a counter since the last run (0 the first time, the whole value after a restart).
+# A value that isn't a number would make the whole call (Ready included) invalid: skip it.
+add() {
+  [[ $2 =~ ^-?[0-9]+(\.[0-9]+)?$ ]] || { echo "mimir-watchdog: skipped $1='$2'"; return 0; }
+  data="$data$${data:+,}{\"MetricName\":\"$1\",\"Value\":$2,\"Dimensions\":[{\"Name\":\"InstanceId\",\"Value\":\"$iid\"}]}"
+}
+# A non-negative integer from a status file; anything else counts as 1 (a problem to look at).
+num() { local v; v=$(cat "$1" 2>/dev/null) || v=$2; [[ $v =~ ^[0-9]{1,12}$ ]] && echo $(( 10#$v )) || echo 1; }
+# The increase since the last run of the counters named $2..., summed per series: a series that disappears
+# (an idle tenant's, cleaned up) adds nothing, a new or reset one adds its value. 0 on the first run. The
+# state is saved only once the metrics are sent.
 increase() {
-  local prev; prev=$(cat "$st/$1" 2>/dev/null || echo "$2")
-  echo "$2" > "$st/$1"
-  awk -v c="$2" -v p="$prev" 'BEGIN {d = c - p; if (d < 0) d = c; printf "%.0f", d}'
+  local name=$1; shift
+  printf '%s\n' "$metrics" | awk -v names=" $* " '
+    { n = $1; sub(/\{.*/, "", n) }
+    index(names, " " n " ") { print substr($0, 1, length($0) - length($NF) - 1) "\t" $NF }' > "$st/$name.new"
+  if [ -f "$st/$name" ]; then
+    awk -F'\t' 'NR == FNR {p[$1] = $2; next} NF == 2 {s += ($1 in p && $2 + 0 >= p[$1] + 0) ? $2 - p[$1] : $2}
+      END {printf "%.0f", s + 0}' "$st/$name" "$st/$name.new"
+  else echo 0; fi
 }
 
 ready=0; curl -sf -m 5 http://127.0.0.1:9009/ready >/dev/null && ready=1
@@ -666,18 +592,37 @@ else
 fi
 add Ready $(( ready && edge ))
 add CertDaysLeft "$days"
-add ConfigRejected $(( $(cat "$st/credentials.rejected" 2>/dev/null || echo 0) + $(cat "$st/limits.rejected" 2>/dev/null || echo 0) ))
 
-if [ "$ready" = 1 ] && metrics=$(curl -sf -m 10 http://127.0.0.1:9009/metrics); then
-  sum() { printf '%s\n' "$metrics" | awk -v m="$1" '$1 == m || index($1, m "{") == 1 {s += $NF} END {printf "%.0f", s}'; }
-  add DiscardedSamples "$(increase discarded "$(sum cortex_discarded_samples_total)")"
-  add ShipperFailures "$(increase shipper "$(sum cortex_ingester_shipper_upload_failures_total)")"
-  add SeriesUsedPercent "$(printf '%s\n' "$metrics" | awk -v max="$MAX_SERIES_TOTAL" '$1 == "cortex_ingester_memory_series" {printf "%.1f", $2 * 100 / max}')"
-  last=$(printf '%s\n' "$metrics" | awk '$1 == "cortex_compactor_last_successful_run_timestamp_seconds" {printf "%.0f", $2}')
-  [ -n "$last" ] && [ "$last" -gt 0 ] && add CompactorHoursSinceSuccess "$(awk -v l="$last" -v n="$(date +%s)" 'BEGIN {printf "%.1f", (n - l) / 3600}')"
+# Configuration not in force: dropped credential lines, a runtime config Mimir refused (it keeps the last
+# good one), or SSM not read successfully for 20 minutes (revocations and tenant changes wait).
+now=$(date +%s)
+stale=0
+for x in credentials limits; do
+  [ -f "$st/$x.last_ok" ] && [ $(( now - $(num "$st/$x.last_ok" "$now") )) -gt 1200 ] && stale=$(( stale + 1 ))
+done
+metrics=$(curl -sf -m 10 http://127.0.0.1:9009/metrics) || metrics=""
+refused=0
+printf '%s\n' "$metrics" | grep -q '^cortex_runtime_config_last_reload_successful{[^}]*} 0$' && refused=1
+add ConfigRejected $(( $(num "$st/credentials.rejected" 0) + refused + stale ))
+
+if [ "$ready" = 1 ] && [ -n "$metrics" ]; then
+  add DiscardedSamples "$(increase discarded cortex_discarded_samples_total \
+    cortex_ingester_instance_rejected_requests_total cortex_distributor_instance_rejected_requests_total)"
+  add ShipperFailures "$(increase shipper cortex_ingester_shipper_upload_failures_total)"
+  add SeriesUsedPercent "$(printf '%s\n' "$metrics" | awk -v max="$MAX_SERIES_TOTAL" '$1 == "cortex_ingester_memory_series" && max > 0 {printf "%.1f", $2 * 100 / max}')"
+  # 0 until the compactor's first success: count from Mimir's start then, so one that never succeeds alarms.
+  since=$(printf '%s\n' "$metrics" | awk '
+    $1 == "cortex_compactor_last_successful_run_timestamp_seconds" {c = $2 + 0}
+    $1 == "process_start_time_seconds" {p = $2 + 0}
+    END {t = (c > 0) ? c : p; if (t > 0) printf "%.0f", t}')
+  [ -n "$since" ] && add CompactorHoursSinceSuccess "$(awk -v l="$since" -v n="$now" 'BEGIN {printf "%.1f", (n - l) / 3600}')"
 fi
-aws cloudwatch put-metric-data --region "$REGION" --namespace PerfMimir --metric-data "[$data]" ||
-  echo "mimir-watchdog: put-metric-data failed"
+if aws cloudwatch put-metric-data --region "$REGION" --namespace PerfMimir --metric-data "[$data]"; then
+  for x in discarded shipper; do [ -f "$st/$x.new" ] && mv "$st/$x.new" "$st/$x"; done
+  exit 0
+fi
+echo "mimir-watchdog: put-metric-data failed"
+exit 1
 SCRIPT
 chmod 0755 /usr/local/sbin/mimir-watchdog
 
@@ -707,7 +652,7 @@ done
 
 # --- CloudWatch agent: memory and disk metrics, Mimir, nginx and bootstrap logs ------------------------
 # Metrics and logs only: a failure here mustn't leave the server half built.
-if curl -fsSL "https://amazoncloudwatch-agent.s3.amazonaws.com/ubuntu/$ARCH/latest/amazon-cloudwatch-agent.deb" -o /tmp/cwa.deb &&
+if curl -fsSL --connect-timeout 10 --max-time 600 --retry 5 --retry-all-errors "https://amazoncloudwatch-agent.s3.amazonaws.com/ubuntu/$ARCH/latest/amazon-cloudwatch-agent.deb" -o /tmp/cwa.deb &&
   dpkg -i /tmp/cwa.deb; then CWA=1; else CWA=0; echo "server-init: CloudWatch agent install failed"; fi
 rm -f /tmp/cwa.deb
 mkdir -p /opt/aws/amazon-cloudwatch-agent/etc
@@ -742,7 +687,7 @@ systemctl start mimir-credentials.service mimir-limits.service || true
 nginx -t
 systemctl enable nginx
 systemctl restart nginx
-systemctl enable --now mimir.service
+systemctl enable --now mimir.service || echo "server-init: mimir didn't start (journalctl -u mimir)"
 for name in credentials limits tls watchdog; do systemctl enable --now mimir-$name.timer; done
 systemctl start mimir-tls.service || true
 echo "server-init: done $(date -u +%FT%TZ)"
