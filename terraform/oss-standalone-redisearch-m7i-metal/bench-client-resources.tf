@@ -29,7 +29,7 @@ resource "aws_instance" "client" {
     github_sha     = "${var.github_sha}"
     team           = "performance_analysis_optimization"
     owner          = "${var.github_actor}"
-    timeout_secs   = "${var.timeout_secs}"
+    timeout_secs   = "${local.effective_timeout_secs}"
   }
 
   tags = {
@@ -44,7 +44,7 @@ resource "aws_instance" "client" {
     github_sha     = "${var.github_sha}"
     team           = "performance_analysis_optimization"
     owner          = "${var.github_actor}"
-    timeout_secs   = "${var.timeout_secs}"
+    timeout_secs   = "${local.effective_timeout_secs}"
   }
 
   ################################################################################

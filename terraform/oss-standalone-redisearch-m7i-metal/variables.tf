@@ -41,6 +41,13 @@ variable "timeout_secs" {
   default     = "3600"
 }
 
+# redisbench-admin sums a 600s-per-spec default, so a narrow run gets a budget
+# the watchdog enforces long before a bare-metal host has booted and finished
+# its spec. Floor the tag the watchdog reads at 4h.
+locals {
+  effective_timeout_secs = max(tonumber(var.timeout_secs), 14400)
+}
+
 
 
 ################################################################################
