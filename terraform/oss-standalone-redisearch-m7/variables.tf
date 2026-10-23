@@ -60,12 +60,8 @@ variable "region" {
   default = "us-east-2"
 }
 
-# (Ubuntu 24.04, memtier_benchmark v=255.255.255 sha=ecadcd68:0 and redis Redis server v=8.10.1 sha=3399357e:0)
-# Moved off the 8.6.0 image (ami-0ea6aaf5946625af3): RediSearch master defers every
-# keyspace notification through RedisModule_AddPostNotificationJobForKey, which no
-# Redis before 8.10 provides, so the module SIGSEGVs on the first write into an
-# indexed keyspace. The other setups still reference the 8.6.0 image.
-# https://us-east-2.console.aws.amazon.com/ec2/home?region=us-east-2#ImageDetails:imageId=ami-0970faf3f922aa7f4
+# Ubuntu 24.04, redis 8.10.1 sha=3399357e, memtier sha=ecadcd68.
+# Redis >= 8.10 is required for RedisModule_AddPostNotificationJobForKey (used by RediSearch master).
 variable "instance_ami" {
   description = "AMI for aws EC2 instance - us-east-2 Ubuntu 24.04 - perf-base-image-ubuntu24.04-m6i.8xlarge-20260827-0153"
   default     = "ami-0970faf3f922aa7f4"
