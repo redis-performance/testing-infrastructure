@@ -86,3 +86,14 @@ resource "aws_eip_association" "api" {
   instance_id   = aws_instance.api.id
   allocation_id = aws_eip.api.id
 }
+
+# The webhook proxy (benchmarks_redislabs_infrastructure, us-east-2) reaches the API over this host's public
+# EIP, so the shared group needs a rule for the proxy's EIP: the VPC CIDR rules do not cover it.
+resource "aws_vpc_security_group_ingress_rule" "api_from_proxy" {
+  security_group_id = data.aws_security_group.benchmarks.id
+  description       = "redis-benchmarks-spec-api webhook from benchmarks.redislabs.com-PROXY-1"
+  ip_protocol       = "tcp"
+  from_port         = 35000
+  to_port           = 35000
+  cidr_ipv4         = "${var.proxy_eip}/32"
+}

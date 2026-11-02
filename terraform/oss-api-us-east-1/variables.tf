@@ -8,7 +8,7 @@ variable "owner" {
 }
 
 variable "instance_type" {
-  default = "t2.medium"
+  default = "m7i.2xlarge"
 }
 
 # Adopted, not rebuilt: the instance ignores AMI changes (see main.tf).
@@ -28,4 +28,9 @@ variable "subnet_id" {
 variable "security_group_id" {
   description = "benchmarks.redislabs.sg, shared with the coordinators and builders"
   default     = "sg-046d72511dd949d2b"
+}
+
+variable "proxy_eip" {
+  description = "EIP of benchmarks.redislabs.com-PROXY-1 (us-east-2), whose HAProxy forwards the webhook to this host"
+  default     = "18.116.150.197"
 }
