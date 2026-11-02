@@ -38,3 +38,8 @@ variable "security_group_id" {
 variable "root_volume_size_gb" {
   default = 30
 }
+
+variable "proxy_eip_allocation_id" {
+  description = "benchmarks-redislabs-eip"
+  default     = "eipalloc-0b47bbade74616b3c"
+}

@@ -1,7 +1,5 @@
-resource "aws_eip_association" "proxy_eip_assoc" {
-  instance_id   = aws_instance.proxy_instance[0].id
-  allocation_id = data.terraform_remote_state.shared_resources.outputs.benchmarks_redislabs_eip_id
-}
+# The benchmarks-redislabs-eip association moved to terraform/oss-proxy-us-east-2 (PROXY-2). PROXY-1 stays up as
+# the rollback target until it is decommissioned.
 
 resource "aws_instance" "proxy_instance" {
   disable_api_termination = true

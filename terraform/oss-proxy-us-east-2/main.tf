@@ -60,3 +60,12 @@ resource "aws_instance" "proxy" {
     ignore_changes = [ami, user_data, user_data_base64]
   }
 }
+
+# benchmarks-redislabs-eip (18.116.150.197): the address the webhook, the RTS endpoints and the spec bucket
+# are reached on. Moved here from terraform/benchmarks_redislabs_infrastructure at the PROXY-1 -> PROXY-2
+# cutover. Rollback: associate the same allocation with PROXY-1 (i-0413b2ea2e7b3583f), see README.
+resource "aws_eip_association" "proxy" {
+  instance_id         = aws_instance.proxy.id
+  allocation_id       = var.proxy_eip_allocation_id
+  allow_reassociation = true
+}
