@@ -36,5 +36,7 @@ Long-lived RTS connections drop on every swap, as they did at the cutover.
 `config/`: `haproxy.cfg` (PROXY-1's config + the `:15000` SPOE filter and `mirroragents` backend),
 `spoe-mirror.cfg`, `spoa-mirror.service`. The agent is `haproxytech/spoa-mirror` v1.2.21 (commit `18e272a`) built
 from source into `/usr/local/bin`. Only `POST /api/gh/redis/redis/commits` is copied; headers (including the
-`X-Hub-Signature-256`) and body are preserved. **The target is still a local test sink**
-(`-u http://127.0.0.1:18080/` in the unit): point it at the real listener and `systemctl restart spoa-mirror`.
+`X-Hub-Signature-256`) and body are preserved. The mirror target is `http://35.174.199.145:14999/` (the oss-api host; its security group admits the proxy's EIP on 14999,
+`terraform/oss-api-us-east-1`). Nothing listens there until the receiving app is started; until then the copies are
+refused and the real webhook path is unaffected. To change the target edit `-u` in the unit and
+`systemctl restart spoa-mirror`.

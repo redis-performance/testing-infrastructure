@@ -34,3 +34,8 @@ variable "proxy_eip" {
   description = "EIP of benchmarks.redislabs.com-PROXY-1 (us-east-2), whose HAProxy forwards the webhook to this host"
   default     = "18.116.150.197"
 }
+
+variable "mirror_port" {
+  description = "Port on this host that receives the mirrored webhook requests"
+  default     = 14999
+}
