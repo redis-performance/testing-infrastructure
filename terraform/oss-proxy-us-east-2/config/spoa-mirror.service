@@ -1,0 +1,9 @@
+[Unit]
+Description=HAProxy SPOA request mirror (haproxytech/spoa-mirror)
+After=network.target
+[Service]
+ExecStart=/usr/local/bin/spoa-mirror -r0 -a 127.0.0.1 -p 12345 -u http://35.174.199.145:14999/
+Restart=always
+DynamicUser=yes
+[Install]
+WantedBy=multi-user.target

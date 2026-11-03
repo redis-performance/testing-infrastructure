@@ -97,3 +97,13 @@ resource "aws_vpc_security_group_ingress_rule" "api_from_proxy" {
   to_port           = 35000
   cidr_ipv4         = "${var.proxy_eip}/32"
 }
+
+# Where the proxy's request mirror (terraform/oss-proxy-us-east-2, spoa-mirror) sends a copy of each webhook POST.
+resource "aws_vpc_security_group_ingress_rule" "mirror_from_proxy" {
+  security_group_id = data.aws_security_group.benchmarks.id
+  description       = "webhook request mirror from benchmarks.redislabs.com proxy"
+  ip_protocol       = "tcp"
+  from_port         = var.mirror_port
+  to_port           = var.mirror_port
+  cidr_ipv4         = "${var.proxy_eip}/32"
+}
