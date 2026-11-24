@@ -14,7 +14,7 @@ resource "aws_iam_role" "runner" {
   tags               = local.tags
 }
 
-# Session Manager, plus read-and-delete of this host's own registration parameter. Jobs on the host can
+# Session Manager, plus read-and-delete of this host's own parameters (registration, Twingate key). Jobs on the host can
 # reach this role through IMDS, so it holds nothing else: workflows bring their own AWS credentials
 # (GitHub OIDC). The explicit Deny keeps AmazonSSMManagedInstanceCore's account-wide ssm:GetParameter(s)
 # off every other parameter.

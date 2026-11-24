@@ -23,6 +23,11 @@ still cap a single session at the role's MaxSessionDuration, at most 12 h).
     each runner as trusted by every later job on it.
 - **Network:** a security group with no ingress, and a fixed egress EIP (output `egress_ip`).
   Administration is via Session Manager only.
+- **Twingate:** the host connects one Twingate client for all its runners (`twingate-setup.sh`, as root,
+  kept up by the client's own service). A job can't do it: Twingate's GitHub action needs sudo, and it
+  restarts the client, which would cut the other jobs' connection. So every job on the host has the
+  network access of that service key, and a workflow must skip the action on these runners
+  (`if: runner.environment == 'github-hosted'`) and only check `twingate status`.
 - **AWS access:** the instance role allows Session Manager and this host's own SSM parameter, nothing
   else. Workflows bring their own AWS credentials (GitHub OIDC).
 - **Alarms:** a system status failure recovers the instance onto new hardware, and an instance status
@@ -87,6 +92,39 @@ gh api --paginate "repos/$REPO/actions/runners" --jq '.runners[] | "\(.name) \(.
 - **Re-running:** `register.sh` registers and starts only the runners that aren't registered yet, so
   running it again (with a fresh parameter) is safe. It refuses while a job is running.
 - **Targeting:** a workflow uses the runners with `runs-on: [self-hosted, <your-label>]`.
+
+## Connect Twingate
+
+Needed by workflows that reach private endpoints through Twingate (neptune-e2e `perf-neptune.yaml`). Put
+the service key (the whole JSON of a Twingate service account key) in the SecureString, from a file, so
+it is never on a command line; `twingate-setup.sh` reads it, connects, and deletes the parameter.
+
+```bash
+AWS_PROFILE=bench aws ssm put-parameter --region us-east-1 --type SecureString --overwrite \
+  --name "$(AWS_PROFILE=bench terraform output -raw twingate_parameter)" --value file://<service-key.json>
+```
+
+A host created from this version has `/opt/actions-runner/twingate-setup.sh` (the bootstrap runs it once,
+and it does nothing without the parameter). A host created before it gets the script in the same command
+(the bootstrap doesn't run again):
+
+```bash
+PREFIX=$(AWS_PROFILE=bench terraform output -raw twingate_parameter); PREFIX=${PREFIX%/twingate-service-key}
+jq -n --arg b64 "$(base64 -w0 twingate-setup.sh)" --arg prefix "$PREFIX" '{commands: [
+  "set -e; f=/opt/actions-runner/twingate-setup.sh",
+  "echo \($b64) | base64 -d | sed -e \"s|__SSM_PREFIX__|\($prefix)|\" -e \"s|__REGION__|us-east-1|g\" > $f",
+  "chmod 0700 $f; $f"]}' > twingate-setup.json
+CMD=$(AWS_PROFILE=bench aws ssm send-command --region us-east-1 --instance-ids "$ID" \
+  --document-name AWS-RunShellScript --parameters file://twingate-setup.json \
+  --query Command.CommandId --output text)
+AWS_PROFILE=bench aws ssm wait command-executed --region us-east-1 --instance-id "$ID" --command-id "$CMD" || true
+AWS_PROFILE=bench aws ssm get-command-invocation --region us-east-1 --instance-id "$ID" --command-id "$CMD" \
+  --query '[Status,StandardOutputContent,StandardErrorContent]' --output text   # ends with "twingate: online"
+```
+
+- **Rotating the key:** put the new key and run the script again, when no job is running (it refuses
+  otherwise: restarting the client cuts every job's connection).
+- **Reboots:** the client's service is enabled, so it reconnects by itself.
 
 ## Replace or remove
 
