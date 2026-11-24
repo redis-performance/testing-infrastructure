@@ -12,3 +12,8 @@ output "registration_parameter" {
   description = "SecureString the registration step reads once and deletes"
   value       = "${local.ssm_prefix}/registration"
 }
+
+output "twingate_parameter" {
+  description = "SecureString twingate-setup.sh reads once and deletes: the Twingate service key (JSON)"
+  value       = "${local.ssm_prefix}/twingate-service-key"
+}

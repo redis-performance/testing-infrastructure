@@ -157,4 +157,13 @@ REG
 sed -i -e "s|__SSM_PREFIX__|${ssm_prefix}|" -e "s|__REGION__|${region}|g" "$base/register.sh"
 chmod 0700 "$base/register.sh"
 
+# Twingate for every runner, connected by the host: see twingate-setup.sh. It does nothing until the
+# service key is in SSM, so on a new host run it again once the key is there (README.md).
+base64 -d > "$base/twingate-setup.sh" <<'TG'
+${twingate_setup_b64}
+TG
+sed -i -e "s|__SSM_PREFIX__|${ssm_prefix}|" -e "s|__REGION__|${region}|g" "$base/twingate-setup.sh"
+chmod 0700 "$base/twingate-setup.sh"
+"$base/twingate-setup.sh" || echo "twingate-setup failed: run it again (README.md)"
+
 echo "== runner-init done: ${runner_count} runners installed, not registered"

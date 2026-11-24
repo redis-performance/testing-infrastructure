@@ -39,6 +39,8 @@ resource "aws_instance" "runner" {
     runner_count   = var.runner_count
     runner_version = var.runner_version
     runner_sha256  = var.runner_sha256
+    # base64: the script is copied as is, outside the template's interpolation rules
+    twingate_setup_b64 = base64encode(file("${path.module}/twingate-setup.sh"))
   }))
   # A bootstrap, AMI or runner_count change does NOT replace the host on its own: jobs can run for days,
   # and a replacement drops every registered runner. Replace deliberately (README):
