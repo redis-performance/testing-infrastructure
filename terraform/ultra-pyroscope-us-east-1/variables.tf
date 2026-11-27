@@ -88,6 +88,20 @@ variable "retention_period" {
   default = "0"
 }
 
+# Tenants besides "ultra" (whose users stay push-1/2 and read-1/2). Each extra tenant gets the users
+# <tenant>-push-1/2 and <tenant>-read-1/2, from the SSM parameters htpasswd/<tenant>-push and
+# htpasswd/<tenant>-read; nginx maps every user to its own tenant, so tenants never see each other's data.
+# "json": the json-agent-workspace (ijson/RedisJSON) per-experiment profiles.
+variable "extra_tenants" {
+  description = "Pyroscope tenants besides ultra, each with its own push and read users"
+  type        = list(string)
+  default     = ["json"]
+  validation {
+    condition     = alltrue([for t in var.extra_tenants : can(regex("^[a-z][a-z0-9]{1,15}$", t)) && !contains(["ultra", "push", "read"], t)])
+    error_message = "extra_tenants must be short lowercase names (letters, digits), and not ultra, push or read."
+  }
+}
+
 variable "alarm_email" {
   description = "Email subscribed to the alarm topic; empty for none"
   default     = ""

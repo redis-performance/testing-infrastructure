@@ -43,6 +43,7 @@ resource "aws_instance" "server" {
     metastore_volume   = aws_ebs_volume.metastore.id
     ssm_prefix         = "/${local.name}"
     read_allowed_cidrs = var.read_allowed_cidrs
+    extra_tenants      = var.extra_tenants
     log_group_pyro     = aws_cloudwatch_log_group.pyroscope.name
     log_group_nginx    = aws_cloudwatch_log_group.nginx.name
     log_group_system   = aws_cloudwatch_log_group.system.name
