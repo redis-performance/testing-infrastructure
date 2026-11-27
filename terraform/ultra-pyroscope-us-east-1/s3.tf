@@ -27,6 +27,8 @@ resource "aws_s3_bucket_public_access_block" "profiles" {
 resource "aws_s3_bucket_server_side_encryption_configuration" "profiles" {
   bucket = aws_s3_bucket.profiles.id
   rule {
+    # AWS blocks SSE-C on this bucket by default; leaving it out would unblock it on the next apply.
+    blocked_encryption_types = ["SSE-C"]
     apply_server_side_encryption_by_default {
       sse_algorithm = "AES256"
     }

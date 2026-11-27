@@ -12,6 +12,8 @@ IMAGE="${image}"
 HOST_NAME="${hostname}"
 SSM_PREFIX="${ssm_prefix}"
 VOLUME_ID="${metastore_volume}"
+# Tenants besides "ultra", each with its own users (<tenant>-push-1/2, <tenant>-read-1/2).
+EXTRA_TENANTS="${join(" ", extra_tenants)}"
 
 # Settings for the helper scripts below (quoted heredocs: they read these at run time).
 cat > /etc/default/ultra-pyroscope <<ENV
@@ -19,6 +21,7 @@ REGION=$REGION
 BUCKET=$BUCKET
 HOST_NAME=$HOST_NAME
 SSM_PREFIX=$SSM_PREFIX
+EXTRA_TENANTS="$EXTRA_TENANTS"
 ENV
 
 export DEBIAN_FRONTEND=noninteractive
@@ -206,25 +209,34 @@ for role in push read; do
 done
 cat > /usr/local/sbin/pyroscope-credentials <<'SCRIPT'
 #!/bin/bash
-# The htpasswd lines come from SSM SecureString parameters, written out of band. Only SHA-512 crypt lines
-# for the role's own users are accepted. A missing parameter empties the file (every request then fails
-# authentication: closed; deleting the parameter revokes); any other SSM error keeps the current file.
+# The htpasswd lines come from SSM SecureString parameters, written out of band: htpasswd/<role> for the
+# ultra tenant's <role>-1/<role>-2, and htpasswd/<tenant>-<role> for each extra tenant's <tenant>-<role>-1/2.
+# Only SHA-512 crypt lines for each parameter's own users are accepted. A missing parameter contributes no
+# users (every ultra parameter missing: every request fails authentication, closed; deleting a parameter
+# revokes its users); any other SSM error or a rejected parameter keeps the role's current file.
 set -u
 . /etc/default/ultra-pyroscope
 changed=0
 for role in push read; do
   f=/etc/nginx/htpasswd/$role
-  if ! new=$(aws ssm get-parameter --region "$REGION" --with-decryption --name "$SSM_PREFIX/htpasswd/$role" \
-    --query Parameter.Value --output text 2>/tmp/pyroscope-credentials.err); then
-    if grep -q ParameterNotFound /tmp/pyroscope-credentials.err; then new=""; else
-      echo "pyroscope-credentials: $role: SSM error, keeping the current file: $(head -c 300 /tmp/pyroscope-credentials.err)"
-      continue
+  new=""
+  keep=0
+  for p in $role $(for t in $EXTRA_TENANTS; do printf '%s-%s ' "$t" "$role"; done); do
+    if ! v=$(aws ssm get-parameter --region "$REGION" --with-decryption --name "$SSM_PREFIX/htpasswd/$p" \
+      --query Parameter.Value --output text 2>/tmp/pyroscope-credentials.err); then
+      if grep -q ParameterNotFound /tmp/pyroscope-credentials.err; then v=""; else
+        echo "pyroscope-credentials: $p: SSM error, keeping the current $role file: $(head -c 300 /tmp/pyroscope-credentials.err)"
+        keep=1; break
+      fi
     fi
-  fi
-  if [ -n "$new" ] && printf '%s\n' "$new" | grep -qvE "^$role-[12]:\\\$6\\\$[./A-Za-z0-9]{1,16}\\\$[./A-Za-z0-9]{86}\$"; then
-    echo "pyroscope-credentials: $role: rejected (only $role-1/$role-2 with SHA-512 crypt hashes), keeping the current file"
-    continue
-  fi
+    if [ -n "$v" ] && printf '%s\n' "$v" | grep -qvE "^$p-[12]:\\\$6\\\$[./A-Za-z0-9]{1,16}\\\$[./A-Za-z0-9]{86}\$"; then
+      echo "pyroscope-credentials: $p: rejected (only $p-1/$p-2 with SHA-512 crypt hashes), keeping the current $role file"
+      keep=1; break
+    fi
+    new="$new$v"$'\n'
+  done
+  [ "$keep" = 1 ] && continue
+  new=$(printf '%s' "$new" | sed '/^$/d')
   if [ "$new" != "$(cat "$f" 2>/dev/null)" ]; then
     printf '%s\n' "$new" | sed '/^$/d' > "$f.tmp" && chown root:nginx "$f.tmp" && chmod 0640 "$f.tmp" && mv "$f.tmp" "$f"
     changed=1
@@ -259,6 +271,12 @@ map \$remote_user \$pyro_tenant {
     push-2  ultra;
     read-1  ultra;
     read-2  ultra;
+%{ for t in extra_tenants ~}
+    ${t}-push-1  ${t};
+    ${t}-push-2  ${t};
+    ${t}-read-1  ${t};
+    ${t}-read-2  ${t};
+%{ endfor ~}
 }
 # Limits key on the client IP: \$remote_user isn't verified before auth_basic runs.
 limit_req_zone  \$binary_remote_addr zone=push_ip:10m rate=20r/s;

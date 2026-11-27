@@ -42,6 +42,14 @@ the owner's tag value because nothing passes it on a manual apply.
      --name /ultra-pyroscope-us-east-1/htpasswd/push --value "push-1:$(openssl passwd -6 "$P")"
    ```
    Same for `/ultra-pyroscope-us-east-1/htpasswd/read` with `read-1`. Several users: one line each.
+3. **Other tenants** (`extra_tenants`, default `["json"]`): each gets its own users, `<tenant>-push-1|2` and
+   `<tenant>-read-1|2`, in `/ultra-pyroscope-us-east-1/htpasswd/<tenant>-push` and `<tenant>-read`, and nginx
+   sends their requests as `X-Scope-OrgID: <tenant>`, so they neither see nor write the Ultra tenant. A missing
+   parameter just means no users for that tenant. Adding a tenant changes user-data (planned replacement).
+   ```bash
+   aws ssm put-parameter --profile bench --region us-east-1 --type SecureString \
+     --name /ultra-pyroscope-us-east-1/htpasswd/json-push --value "json-push-1:$(openssl passwd -6 "$P")"
+   ```
 
 ## Teardown
 
@@ -69,7 +77,8 @@ curl -s --resolve $HOST:443:127.0.0.1 https://$HOST/healthz
 docker logs --since 15m pyroscope 2>&1 | grep -E 'level=(error|warn)|panic' | tail
 tail -50 /var/log/server-init.log               # the bootstrap
 ```
-Queries (the public read path only admits the Grafana NAT): tunnel to 4040 and send `X-Scope-OrgID: ultra`:
+Queries (the public read path only admits the Grafana NAT): tunnel to 4040 and send `X-Scope-OrgID: ultra`
+(or another tenant's name, e.g. `json`):
 ```bash
 aws ssm start-session --target "$IID" --document-name AWS-StartPortForwardingSession \
   --parameters portNumber=4040,localPortNumber=14040 &
