@@ -28,22 +28,32 @@ AWS_PROFILE=bench terraform apply p.tfplan
 ```bash
 export AWS_PROFILE=bench AWS_REGION=us-east-1
 $(terraform output -raw tunnel_command) &                       # localhost:15432 -> the database
-PGPASSWORD=$(aws secretsmanager get-secret-value --secret-id "$(terraform output -raw master_secret_arn)" \
-  --query SecretString --output text | jq -r .password) \
-psql "host=localhost port=15432 dbname=results user=dbadmin sslmode=require" <<'SQL'
+export PGPASSWORD=$(aws secretsmanager get-secret-value --secret-id "$(terraform output -raw master_secret_arn)" \
+  --query SecretString --output text | jq -r .password)
+psql "host=localhost port=15432 dbname=postgres user=dbadmin sslmode=require" <<'SQL'
 CREATE ROLE writer LOGIN; GRANT rds_iam TO writer;
 CREATE ROLE reader LOGIN; GRANT rds_iam TO reader;
 SQL
 ```
 
-Each project gets its own database, owned by `writer`, with `reader` granted `CONNECT` and `SELECT` (and the
-same default privileges for tables `writer` creates later):
+Each project gets its own database, owned by `writer`, with `reader` granted `CONNECT` and `SELECT`. Create it in
+one `dbadmin` session. PostgreSQL 16+ requires `dbadmin` to be a member of `writer` for `OWNER writer`, and RDS
+makes any member of `rds_iam`, even through another role, log in with an IAM token: leave `writer` before
+disconnecting, or `dbadmin` stops accepting its password (log in with
+`aws rds generate-db-auth-token --username dbadmin` and run the `REVOKE` to recover).
 
 ```sql
+GRANT writer TO dbadmin;
 CREATE DATABASE <project> OWNER writer;
-\c <project>
-GRANT CONNECT ON DATABASE <project> TO reader;
-ALTER DEFAULT PRIVILEGES FOR ROLE writer IN SCHEMA public GRANT SELECT ON TABLES TO reader;
+REVOKE ALL ON DATABASE <project> FROM PUBLIC;
+GRANT CONNECT, TEMPORARY ON DATABASE <project> TO reader;
+REVOKE writer FROM dbadmin;
+```
+
+Then, as `writer` (see Connect) in `<project>`, so `reader` can read what `writer` creates:
+
+```sql
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO reader;
 ```
 
 ## Connect

@@ -14,10 +14,11 @@ resource "aws_db_parameter_group" "db" {
     name  = "rds.force_ssl"
     value = "1"
   }
-  # Connections and slow statements in the log, for the odd runaway query from an MCP client.
+  # Connections and slow statements in the log, for the odd runaway query from an MCP client. PostgreSQL 18
+  # takes a list of connection stages here; these three are what "on" meant before.
   parameter {
     name  = "log_connections"
-    value = "1"
+    value = "receipt,authentication,authorization"
   }
   parameter {
     name  = "log_min_duration_statement"
